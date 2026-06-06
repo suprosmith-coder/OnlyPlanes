@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.github.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.github.com https://api.allorigins.win https://*.vercel.app; img-src 'self' data: https: blob:; worker-src 'self' blob:;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="OnlyPlanes — Log. Spot. Soar. The social platform built for aviation enthusiasts. Share flight logs, spot aircraft, and connect with fellow aviators.">
+  <meta name="theme-color" content="#040c1a">
+
+  <!-- PWA / installability -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Planebook">
+  <link rel="apple-touch-icon" href="devit.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="devit.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="devit.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="devit.png">
+  <meta name="msapplication-TileImage" content="devit.png">
+  <meta name="msapplication-TileColor" content="#050508">
+  <meta name="msapplication-tap-highlight" content="no">
+
+  <meta name="robots" content="index, follow">
+  <meta name="keywords" content="aviation social network, flight logs, planespotting, aircraft community, aviator platform">
+  <meta name="author" content="Planebook">
+  <link rel="canonical" href="https://devit-six.vercel.app/">
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Planebook — Log. Spot. Soar.">
+  <meta property="og:description" content="The social platform built for aviation enthusiasts. Share flight logs, spot aircraft, and connect with fellow aviators.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://devit-six.vercel.app/">
+  <meta property="og:image" content="https://devit-six.vercel.app/devit.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Planebook — The aviation social platform">
+  <meta property="og:site_name" content="Planebook">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Planebook — Log. Spot. Soar.">
+  <meta name="twitter:description" content="The social platform built for aviation enthusiasts.">
+  <meta name="twitter:image" content="https://devit-six.vercel.app/devit.png">
+  <meta name="twitter:image:alt" content="Planebook — The aviation social platform">
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Planebook",
+    "description": "The social platform built for aviation enthusiasts. Share flight logs, spot aircraft, and connect with fellow aviators.",
+    "url": "https://devit-six.vercel.app/",
+    "applicationCategory": "SocialNetworkingApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+  <title>Planebook — Log. Spot. Soar.</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="devit.png" type="image/png">
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <noscript>
+    <div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;text-align:center;padding:20px">
+      <div>
+        <h2 style="margin-bottom:8px">JavaScript required</h2>
+        <p style="color:#888">Planebook requires JavaScript to run. Please enable it in your browser settings.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <div class="presence-bar" id="presence-bar"></div>
+
+  <!-- AUTH SCREEN -->
+  <div id="auth-screen">
+    <div class="auth-bg">
+      <div class="auth-bg-grid"></div>
+      <div class="auth-bg-orb orb-1"></div>
+      <div class="auth-bg-orb orb-2"></div>
+      <div class="auth-bg-orb orb-3"></div>
+    </div>
+
+    <!-- Left panel – branding/feature highlights + public trending preview -->
+    <div class="auth-panel-left">
+      <div class="auth-panel-brand">
+        <img src="devit.png" alt="Planebook" class="auth-panel-logo">
+        <span class="auth-panel-name">Planebook</span>
+      </div>
+      <h2 class="auth-panel-headline">Where aviators<br>log &amp; connect.</h2>
+      <p class="auth-panel-desc">Share your flights. Spot aircraft worldwide. Connect with pilots, spotters, and enthusiasts who live and breathe aviation.</p>
+
+      <!-- Trending preview (public, anon fetch) -->
+      <div class="auth-trending-preview" id="auth-trending-preview">
+        <div class="auth-trending-label"><i class="fa-solid fa-fire" style="color:var(--cyan)"></i> Trending now</div>
+        <div id="auth-trending-list">
+          <div class="auth-trending-skeleton"></div>
+          <div class="auth-trending-skeleton"></div>
+          <div class="auth-trending-skeleton"></div>
+        </div>
+      </div>
+
+      <!-- Feature pills (condensed) -->
+      <div class="auth-feature-pills">
+        <span class="auth-pill"><i class="fa-solid fa-plane"></i> Flight logs</span>
+        <span class="auth-pill"><i class="fa-solid fa-binoculars"></i> Planespotting</span>
+        <span class="auth-pill"><i class="fa-solid fa-bolt"></i> Real-time DMs</span>
+        <span class="auth-pill"><i class="fa-solid fa-people-group"></i> Crew boards</span>
+        <span class="auth-pill"><i class="fa-solid fa-route"></i> Route posts</span>
+        <span class="auth-pill"><i class="fa-solid fa-hashtag"></i> Topic channels</span>
+      </div>
+    </div>
+
+    <!-- Right panel – auth card -->
+    <div class="auth-card">
+      <div class="auth-card-center">
+        <div class="auth-card-logo">
+          <img src="devit.png" alt="Planebook" style="width:56px;height:56px;border-radius:16px;object-fit:cover;">
+        </div>
+        <h2 class="auth-card-title">Welcome to OnlyPlanes</h2>
+        <p class="auth-card-sub">Sign in with your Discord account to join the fleet.</p>
+
+        <button class="auth-btn-discord" id="discord-login-btn">
+          <svg class="discord-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" fill="#fff"/>
+          </svg>
+          <span>Continue with Discord</span>
+        </button>
+
+        <div id="auth-status" style="display:none;margin-top:16px;padding:10px 14px;border-radius:10px;background:var(--bg-elevated);font-size:13px;color:var(--text-secondary);text-align:center;border:1px solid var(--border);line-height:1.5"></div>
+
+        <div class="auth-footer">
+          By continuing you agree to Planebook's <a href="#" rel="noopener">Terms</a> and <a href="#" rel="noopener">Privacy Policy</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP SHELL -->
+  <div id="app" aria-hidden="true">
+    <div id="topbar" role="banner"></div>
+    <div class="app-body">
+      <aside id="sidebar" role="navigation" aria-label="Main navigation"></aside>
+      <main id="main" role="main" aria-live="polite" aria-atomic="false" tabindex="-1"></main>
+      <aside id="rightbar" role="complementary" aria-label="Sidebar widgets"></aside>
+    </div>
+  </div>
+
+  <!-- Mobile drawer blur overlay -->
+  <div id="layout-blur-overlay"></div>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav id="bottom-nav" aria-label="Main navigation">
+    <div id="bottom-nav-inner">
+      <button class="bnav-btn active" data-nav="feed" aria-label="Feed">
+        <i class="fa-solid fa-house"></i>
+        <span class="bnav-badge" id="bnav-badge-feed"></span>
+      </button>
+      <button class="bnav-btn" data-nav="explore" aria-label="Explore">
+        <i class="fa-solid fa-compass"></i>
+      </button>
+      <button class="bnav-btn bnav-post-btn" id="bnav-post-btn" aria-label="New post">
+        <div class="bnav-post-icon"><i class="fa-solid fa-plus"></i></div>
+      </button>
+      <button class="bnav-btn" data-nav="messages" aria-label="Messages">
+        <i class="fa-solid fa-message"></i>
+        <span class="bnav-badge" id="bnav-badge-messages"></span>
+      </button>
+      <button class="bnav-btn" data-nav="leaderboard" aria-label="Leaderboard">
+        <i class="fa-solid fa-trophy"></i>
+      </button>
+      <button class="bnav-btn" data-nav="profile" aria-label="Profile">
+        <i class="fa-solid fa-user"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title-text">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="modal-title-text">New Post</span>
+        <button class="modal-close" id="modal-close-btn" aria-label="Close dialog"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toast-container" role="status" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- Experience feedback popup removed: interrupts focus -->
+
+  <!-- Rate popup removed: time-based interruptions hurt focus -->
+
+  <!-- PROFILE QUICK VIEW OVERLAY -->
+  <div id="profile-quick-overlay" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);align-items:center;justify-content:center;">
+    <div id="profile-quick-card" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:24px;width:360px;max-width:95vw;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,0.6);">
+    </div>
+  </div>
+
+  <script>
+    // Apply saved theme immediately (before render) to avoid flash
+    (function() {
+      const t = localStorage.getItem('devit-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+
+  <script>
+    window.DEVIT_CONFIG = {
+      SUPABASE_URL: 'https://nynrocdgmowjgslgfdmc.supabase.co',
+      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55bnJvY2RnbW93amdzbGdmZG1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NTUxNTQsImV4cCI6MjA5MzIzMTE1NH0.280rrXAe92hxylzia2hl3ygRrG0LraDzBCGwQUeXu5U',
+      SITE_URL: 'https://devit-six.vercel.app/',
+    };
+  </script>
+
+  <script src="app.js"></script>
+
+  <!-- ── Sidebar Drawer Init ─────────────────────────────────── -->
+  <script>
+  (function() {
+    // Wait for buildTopbar() to render the ham button, then upgrade it
+    function initSidebarDrawer() {
+      const hamBtn = document.getElementById('topbar-ham-btn');
+      if (!hamBtn) { setTimeout(initSidebarDrawer, 150); return; }
+
+      // Replace single icon with bars + X pair
+      hamBtn.innerHTML = `
+        <i class="fa-solid fa-bars icon-bars"></i>
+        <i class="fa-solid fa-xmark icon-x"></i>`;
+      hamBtn.style.cssText = '';  // clear any inline display:none
+
+      // Override toggleSidebar to use drawer open/close instead of sidebar-collapsed
+      window.toggleSidebar = function() {
+        const sidebar  = document.getElementById('sidebar');
+        const overlay  = document.getElementById('layout-blur-overlay');
+        if (!sidebar) return;
+        const isOpen = sidebar.classList.toggle('open');
+        document.body.classList.toggle('sidebar-open', isOpen);
+        if (overlay) overlay.classList.toggle('active', isOpen);
+        // Close when overlay is clicked
+        if (isOpen && overlay) {
+          overlay.onclick = window.closeSidebarDrawer;
+        }
+      };
+
+      window.closeSidebarDrawer = function() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('layout-blur-overlay');
+        if (!sidebar) return;
+        sidebar.classList.remove('open');
+        document.body.classList.remove('sidebar-open');
+        if (overlay) { overlay.classList.remove('active'); overlay.onclick = null; }
+      };
+
+      // Close drawer when a nav link is clicked
+      document.getElementById('sidebar')?.addEventListener('click', e => {
+        if (e.target.closest('.sidebar-link')) window.closeSidebarDrawer();
+      });
+
+      // Close on Escape
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && document.body.classList.contains('sidebar-open')) {
+          window.closeSidebarDrawer();
+        }
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => setTimeout(initSidebarDrawer, 200));
+    } else {
+      setTimeout(initSidebarDrawer, 200);
+    }
+  })();
+  </script>
+
+  <!-- ── Topbar Search Dropdown ──────────────────────────────── -->
+  <script>
+  (function() {
+    // Wait for topbar to be rendered by app.js, then attach dropdown
+    function initSearchDropdown() {
+      const searchWrap = document.querySelector('.topbar-search');
+      if (!searchWrap) { setTimeout(initSearchDropdown, 300); return; }
+
+      const input = searchWrap.querySelector('input');
+      if (!input) { setTimeout(initSearchDropdown, 300); return; }
+
+      // Create dropdown container
+      const dropdown = document.createElement('div');
+      dropdown.id = 'topbar-search-dropdown';
+      searchWrap.appendChild(dropdown);
+
+      let debounceTimer = null;
+      let currentQuery = '';
+
+      function openDropdown() { dropdown.classList.add('open'); }
+      function closeDropdown() { dropdown.classList.remove('open'); }
+
+      function renderLoading() {
+        dropdown.innerHTML = `<div class="tsearch-loading"><div class="tsearch-spinner"></div>Searching…</div>`;
+        openDropdown();
+      }
+
+      function renderEmpty(q) {
+        dropdown.innerHTML = `<div class="tsearch-empty">No results for "<strong>${escHtml(q)}</strong>"</div>`;
+        openDropdown();
+      }
+
+      function renderDefault() {
+        dropdown.innerHTML = `
+          <div class="tsearch-section-label">Quick nav</div>
+          <div class="tsearch-result" data-nav="feed">
+            <div class="tsearch-result-icon"><i class="fa-solid fa-house"></i></div>
+            <div class="tsearch-result-text">
+              <div class="tsearch-result-name">Feed</div>
+              <div class="tsearch-result-sub">Your home timeline</div>
+            </div>
+          </div>
+          <div class="tsearch-result" data-nav="explore">
+            <div class="tsearch-result-icon"><i class="fa-solid fa-compass"></i></div>
+            <div class="tsearch-result-text">
+              <div class="tsearch-result-name">Explore</div>
+              <div class="tsearch-result-sub">Trending posts & devs</div>
+            </div>
+          </div>
+          <div class="tsearch-result" data-nav="messages">
+            <div class="tsearch-result-icon"><i class="fa-solid fa-message"></i></div>
+            <div class="tsearch-result-text">
+              <div class="tsearch-result-name">Messages</div>
+              <div class="tsearch-result-sub">Direct messages</div>
+            </div>
+          </div>
+          <div class="tsearch-result" data-nav="leaderboard">
+            <div class="tsearch-result-icon"><i class="fa-solid fa-trophy"></i></div>
+            <div class="tsearch-result-text">
+              <div class="tsearch-result-name">Leaderboard</div>
+              <div class="tsearch-result-sub">Top shipping devs</div>
+            </div>
+          </div>
+        `;
+        openDropdown();
+
+        // Quick nav click handlers
+        dropdown.querySelectorAll('.tsearch-result[data-nav]').forEach(el => {
+          el.addEventListener('click', () => {
+            const nav = el.dataset.nav;
+            if (typeof navigateTo === 'function') navigateTo(nav);
+            closeDropdown();
+            input.value = '';
+          });
+        });
+      }
+
+      function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
+      function renderResults(users, posts, q) {
+        if (!users.length && !posts.length) { renderEmpty(q); return; }
+        let html = '';
+
+        if (users.length) {
+          html += `<div class="tsearch-section-label">People</div>`;
+          users.forEach(u => {
+            const initials = (u.full_name || u.username || '?').slice(0,2).toUpperCase();
+            const avatarHtml = u.avatar_url
+              ? `<img src="${escHtml(u.avatar_url)}" alt="" loading="lazy">`
+              : initials;
+            html += `
+              <div class="tsearch-result" data-type="user" data-id="${escHtml(u.id || '')}">
+                <div class="tsearch-result-avatar">${avatarHtml}</div>
+                <div class="tsearch-result-text">
+                  <div class="tsearch-result-name">${escHtml(u.full_name || u.username || '')}</div>
+                  <div class="tsearch-result-sub">@${escHtml(u.username || '')}</div>
+                </div>
+              </div>`;
+          });
+        }
+
+        if (users.length && posts.length) html += `<div class="tsearch-divider"></div>`;
+
+        if (posts.length) {
+          html += `<div class="tsearch-section-label">Posts</div>`;
+          posts.slice(0,3).forEach(p => {
+            const preview = (p.content || '').slice(0,60) + (p.content && p.content.length > 60 ? '…' : '');
+            html += `
+              <div class="tsearch-result" data-type="post" data-id="${escHtml(p.id || '')}">
+                <div class="tsearch-result-icon"><i class="fa-solid fa-file-code"></i></div>
+                <div class="tsearch-result-text">
+                  <div class="tsearch-result-name">${escHtml(p.author_name || p.username || 'Post')}</div>
+                  <div class="tsearch-result-sub">${escHtml(preview)}</div>
+                </div>
+              </div>`;
+          });
+        }
+
+        html += `<div class="tsearch-footer"><i class="fa-solid fa-magnifying-glass"></i> See all results for "${escHtml(q)}"</div>`;
+        dropdown.innerHTML = html;
+        openDropdown();
+
+        // Result click handlers
+        dropdown.querySelectorAll('.tsearch-result[data-type]').forEach(el => {
+          el.addEventListener('click', () => {
+            const type = el.dataset.type;
+            const id = el.dataset.id;
+            if (type === 'user' && typeof navigateTo === 'function') navigateTo('profile', { userId: id });
+            if (type === 'post' && typeof navigateTo === 'function') navigateTo('post', { postId: id });
+            closeDropdown();
+            input.value = '';
+          });
+        });
+
+        const footer = dropdown.querySelector('.tsearch-footer');
+        if (footer) {
+          footer.addEventListener('click', () => {
+            if (typeof navigateTo === 'function') navigateTo('search', { q: currentQuery });
+            closeDropdown();
+            input.value = '';
+          });
+        }
+      }
+
+      async function runSearch(q) {
+        if (!q || !window.DEVIT_CONFIG) return;
+        const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.DEVIT_CONFIG;
+
+        // Use supabase client if available, else raw fetch
+        try {
+          if (window.supabase && typeof window.supabase.from === 'function') {
+            const [{ data: users }, { data: posts }] = await Promise.all([
+              window.supabase.from('profiles')
+                .select('id, username, full_name, avatar_url')
+                .or(`username.ilike.%${q}%,full_name.ilike.%${q}%`)
+                .limit(5),
+              window.supabase.from('posts')
+                .select('id, content, author_id')
+                .ilike('content', `%${q}%`)
+                .limit(4),
+            ]);
+            renderResults(users || [], posts || [], q);
+          } else {
+            // Fallback — render empty
+            renderEmpty(q);
+          }
+        } catch(e) {
+          renderEmpty(q);
+        }
+      }
+
+      // Input event
+      input.addEventListener('focus', () => {
+        if (input.value.trim()) return;
+        renderDefault();
+      });
+
+      input.addEventListener('input', () => {
+        const q = input.value.trim();
+        currentQuery = q;
+        clearTimeout(debounceTimer);
+        if (!q) { renderDefault(); return; }
+        renderLoading();
+        debounceTimer = setTimeout(() => runSearch(q), 280);
+      });
+
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeDropdown(); input.blur(); }
+        if (e.key === 'Enter' && currentQuery) {
+          if (typeof navigateTo === 'function') navigateTo('search', { q: currentQuery });
+          closeDropdown();
+        }
+      });
+
+      // Close on outside click
+      document.addEventListener('click', e => {
+        if (!searchWrap.contains(e.target)) closeDropdown();
+      }, true);
+    }
+
+    // Delay to let app.js render the topbar
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => setTimeout(initSearchDropdown, 500));
+    } else {
+      setTimeout(initSearchDropdown, 500);
+    }
+  })();
+  </script>
+ <script>
+    // Modal close
+    document.getElementById('modal-close-btn')?.addEventListener('click', () => {
+      document.getElementById('modal-overlay')?.classList.remove('open');
+    });
+    document.getElementById('modal-overlay')?.addEventListener('click', e => {
+      if (e.target === document.getElementById('modal-overlay')) {
+        document.getElementById('modal-overlay')?.classList.remove('open');
+      }
+    });
+
+    // Like button pop animation (delegated)
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('.like-btn');
+      if (btn) {
+        btn.classList.remove('liked');
+        void btn.offsetWidth; // reflow
+        btn.classList.add('liked');
+      }
+    });
+
+    // Ripple on interactive elements
+    document.addEventListener('pointerdown', e => {
+      const el = e.target.closest('button, .sidebar-link, .bnav-btn, .post-card');
+      if (!el || el.disabled) return;
+      const rect = el.getBoundingClientRect();
+      const r = document.createElement('span');
+      r.className = 'ripple';
+      const size = Math.max(rect.width, rect.height);
+      r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+      el.style.position = el.style.position || 'relative';
+      el.style.overflow = 'hidden';
+      el.appendChild(r);
+      setTimeout(() => r.remove(), 500);
+    });
+
+    // Auth tab switcher
+    const tabSI = document.getElementById('tab-signin');
+    const tabSU = document.getElementById('tab-signup');
+    const formSI = document.getElementById('form-signin');
+    const formSU = document.getElementById('form-signup');
+
+    tabSI.addEventListener('click', () => {
+      tabSI.classList.add('active'); tabSU.classList.remove('active');
+      formSI.style.display = ''; formSU.style.display = 'none';
+      document.getElementById('auth-status').style.display = 'none';
+    });
+    tabSU.addEventListener('click', () => {
+      tabSU.classList.add('active'); tabSI.classList.remove('active');
+      formSU.style.display = ''; formSI.style.display = 'none';
+      document.getElementById('auth-status').style.display = 'none';
+    });
+
+    // Password visibility toggles
+    document.querySelectorAll('.auth-toggle-pw').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const inp = document.getElementById(btn.dataset.target);
+        const icon = btn.querySelector('i');
+        if (inp.type === 'password') {
+          inp.type = 'text';
+          icon.className = 'fa-solid fa-eye-slash';
+        } else {
+          inp.type = 'password';
+          icon.className = 'fa-solid fa-eye';
+        }
+      });
+    });
+
+    // Password strength meter
+    const pwInput = document.getElementById('auth-password-su');
+    if (pwInput) {
+      pwInput.addEventListener('input', () => {
+        const v = pwInput.value;
+        const meter = document.getElementById('pw-strength');
+        const fill = document.getElementById('pw-strength-fill');
+        const label = document.getElementById('pw-strength-label');
+        if (!v) { meter.style.display = 'none'; return; }
+        meter.style.display = 'flex';
+        let score = 0;
+        if (v.length >= 8) score++;
+        if (/[A-Z]/.test(v)) score++;
+        if (/[0-9]/.test(v)) score++;
+        if (/[^A-Za-z0-9]/.test(v)) score++;
+        const levels = [
+          { pct: '25%', color: '#f87171', text: 'Weak' },
+          { pct: '50%', color: '#fb923c', text: 'Fair' },
+          { pct: '75%', color: '#facc15', text: 'Good' },
+          { pct: '100%', color: '#4ade80', text: 'Strong' },
+        ];
+        const lvl = levels[Math.max(0, score - 1)];
+        fill.style.width = lvl.pct;
+        fill.style.background = lvl.color;
+        label.textContent = lvl.text;
+        label.style.color = lvl.color;
+      });
+    }
+  </script>
+  <!-- PWA update banner — shown when a new SW version is waiting -->
+  <div id="sw-update-banner" style="
+    display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+    background:var(--bg-surface,#1e1e2e);border:1px solid rgba(99,217,255,0.3);
+    border-radius:14px;padding:12px 18px;z-index:9999;
+    display:none;align-items:center;gap:12px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.5);font-size:13px;
+    color:var(--text-primary,#f0f2ff);white-space:nowrap;
+  ">
+    <i class="fa-solid fa-rotate" style="color:#ff2d6e"></i>
+    <span>New version available</span>
+    <button id="sw-update-btn" style="
+      padding:5px 14px;border-radius:8px;border:none;cursor:pointer;
+      background:linear-gradient(135deg,#ff2d6e,#a78bfa);
+      color:#050508;font-size:12px;font-weight:700;
+    ">Update</button>
+    <button id="sw-update-dismiss" style="
+      background:none;border:none;cursor:pointer;
+      color:var(--text-muted,#666);font-size:16px;line-height:1;
+    ">×</button>
+  </div>
+
+  <!-- GITHUB WEBHOOK SETUP MODAL -->
+  <div id="gh-webhook-modal" style="display:none;position:fixed;inset:0;z-index:800;background:rgba(0,0,0,0.75);backdrop-filter:blur(12px);align-items:center;justify-content:center;">
+    <div style="background:var(--bg-surface);border:1px solid var(--border-mid);border-radius:var(--radius-xl);width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 32px 80px rgba(0,0,0,0.6);">
+      <div style="padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:0">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;background:#24292e;border-radius:10px;display:flex;align-items:center;justify-content:center">
+            <i class="fa-brands fa-github" style="color:#fff;font-size:16px"></i>
+          </div>
+          <div>
+            <div style="font-family:var(--font-display);font-weight:800;font-size:16px">Automate Ship Posts</div>
+            <div style="font-size:12px;color:var(--text-muted)">Connect GitHub Webhooks to auto-post releases</div>
+          </div>
+        </div>
+        <button id="gh-webhook-modal-close" style="color:var(--text-muted);font-size:18px;padding:4px 8px;border-radius:8px;transition:color 0.15s" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="gh-webhook-modal-body" style="padding:20px 24px 24px"></div>
+    </div>
+  </div>
+
+  <!-- CODESANDBOX EMBED MODAL -->
+  <div id="sandbox-embed-modal" style="display:none;position:fixed;inset:0;z-index:800;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);align-items:center;justify-content:center;">
+    <div style="background:var(--bg-surface);border:1px solid var(--border-mid);border-radius:var(--radius-xl);width:680px;max-width:95vw;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,0.6);">
+      <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:10px">
+          <i class="fa-solid fa-code" style="color:var(--cyan);font-size:15px"></i>
+          <span style="font-family:var(--font-display);font-weight:700;font-size:15px" id="sandbox-embed-title">Code Sandbox</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <a id="sandbox-embed-fork-link" href="#" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:var(--emerald);display:flex;align-items:center;gap:5px;text-decoration:none;padding:4px 10px;background:rgba(62,207,142,0.1);border:1px solid rgba(62,207,142,0.25);border-radius:8px;font-weight:600">
+            <i class="fa-solid fa-code-fork" style="font-size:10px"></i> Fork
+          </a>
+          <a id="sandbox-embed-open-link" href="#" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:var(--cyan);display:flex;align-items:center;gap:5px;text-decoration:none;padding:4px 10px;background:var(--cyan-dim);border:1px solid rgba(255,45,110,0.2);border-radius:8px;font-weight:600">
+            <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px"></i> Open
+          </a>
+          <button id="sandbox-embed-modal-close" style="color:var(--text-muted);font-size:18px;padding:4px 8px;border-radius:8px;transition:color 0.15s">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+      <div id="sandbox-embed-body" style="flex:1;min-height:480px;background:#1e1e1e"></div>
+    </div>
+  </div>
+
+  <script>
+    // ── Webhook modal close ─────────────────────────────────────────────
+    document.getElementById('gh-webhook-modal-close')?.addEventListener('click', () => {
+      document.getElementById('gh-webhook-modal').style.display = 'none';
+    });
+    document.getElementById('gh-webhook-modal')?.addEventListener('click', e => {
+      if (e.target === document.getElementById('gh-webhook-modal'))
+        document.getElementById('gh-webhook-modal').style.display = 'none';
+    });
+
+    // ── Sandbox modal close ─────────────────────────────────────────────
+    document.getElementById('sandbox-embed-modal-close')?.addEventListener('click', () => {
+      document.getElementById('sandbox-embed-modal').style.display = 'none';
+      document.getElementById('sandbox-embed-body').innerHTML = '';
+    });
+    document.getElementById('sandbox-embed-modal')?.addEventListener('click', e => {
+      if (e.target === document.getElementById('sandbox-embed-modal')) {
+        document.getElementById('sandbox-embed-modal').style.display = 'none';
+        document.getElementById('sandbox-embed-body').innerHTML = '';
+      }
+    });
+  </script>
+
+  <script>
+    // ── SW update detection ─────────────────────────────────────────────
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // A new SW is waiting — show the update banner
+              const banner = document.getElementById('sw-update-banner');
+              if (banner) banner.style.display = 'flex';
+            }
+          });
+        });
+      });
+
+      // When the new SW takes over, reload to get the fresh shell
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) { refreshing = true; location.reload(); }
+      });
+    }
+
+    document.getElementById('sw-update-btn')?.addEventListener('click', () => {
+      navigator.serviceWorker.getRegistration().then(reg => {
+        reg?.waiting?.postMessage({ type: 'SKIP_WAITING' });
+      });
+      document.getElementById('sw-update-banner').style.display = 'none';
+    });
+    document.getElementById('sw-update-dismiss')?.addEventListener('click', () => {
+      document.getElementById('sw-update-banner').style.display = 'none';
+    });
+
+    // ── Handle shortcut deep-links (?action=new-post, ?view=messages) ──
+    (function handleStartupParams() {
+      const params = new URLSearchParams(location.search);
+      const action = params.get('action');
+      const view   = params.get('view');
+      if (!action && !view) return;
+      // Clean the URL immediately
+      history.replaceState(null, '', location.pathname);
+      // Wait for the app to boot, then route
+      document.addEventListener('devit:signed-in', () => {
+        if (action === 'new-post' && typeof openNewPostModal === 'function') {
+          setTimeout(openNewPostModal, 600);
+        } else if (view && typeof navigateTo === 'function') {
+          setTimeout(() => navigateTo(view), 400);
+        }
+      }, { once: true });
+    })();
+  </script>
+
+  <script>
+    // Public trending feed on auth screen — fetches anon posts without requiring login
+    (async function loadAuthTrendingPreview() {
+      try {
+        const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.DEVIT_CONFIG;
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/posts?select=id,content,likes_count,profiles!posts_author_id_fkey(username,display_name,avatar_url)&order=likes_count.desc&limit=5`,
+          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+        );
+        if (!res.ok) return;
+        const posts = await res.json();
+        const list = document.getElementById('auth-trending-list');
+        if (!list || !posts?.length) return;
+        list.innerHTML = posts.slice(0, 4).map(p => {
+          const profile = p.profiles || {};
+          const preview = (p.content || '').replace(/```[\s\S]*?```/g, '[code]').replace(/\n/g,' ').slice(0, 90);
+          const initials = (profile.display_name || profile.username || 'U').slice(0,2).toUpperCase();
+          const avatarContent = profile.avatar_url
+            ? `<img src="${profile.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+            : `<span style="font-size:9px;font-weight:800;color:#fff">${initials}</span>`;
+          return `
+            <div class="auth-trending-item">
+              <div class="auth-trending-avatar" style="background:hsl(${(initials.charCodeAt(0)*37)%360},55%,32%)">${avatarContent}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;font-weight:700;color:rgba(245,245,240,0.9)">@${(profile.username||'dev').slice(0,18)}</div>
+                <div style="font-size:11px;color:rgba(153,153,168,0.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px">${preview || '…'}</div>
+              </div>
+              <span style="font-size:10px;color:rgba(56,189,248,0.8);flex-shrink:0;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-heart"></i>${p.likes_count||0}</span>
+            </div>`;
+        }).join('');
+      } catch (_) {}
+    })();
+  </script>
+
+</body>
+</html>
