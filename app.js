@@ -321,7 +321,9 @@ async function renderTagFeed(main, tag) {
   if (metaEl) metaEl.textContent = `${posts.length} post${posts.length !== 1 ? 's' : ''}`;
 
   const postIds = posts.map(p => p.id);
-  const { data: likes } = await sb.from('op_post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
+  const { data: likes } = State.user?.id
+    ? await sb.from('op_post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds)
+    : { data: [] };
   const likedIds = new Set((likes || []).map(l => l.post_id));
 
   container.innerHTML = '';
@@ -2115,7 +2117,7 @@ async function loadPosts(container, stackFilter = '') {
   // Get which posts user liked/bookmarked
   const postIds = filteredPosts.map(p => p.id);
   let likedIds = new Set(), bookmarkedIds = new Set();
-  if (postIds.length) {
+  if (postIds.length && State.user?.id) {
     const { data: likes } = await sb.from('op_post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
     const { data: bookmarks } = await sb.from('op_bookmarks').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
     likedIds = new Set((likes || []).map(l => l.post_id));
@@ -2512,21 +2514,6 @@ function buildComposer(container) {
   });
 
   textarea.addEventListener('blur', () => setTimeout(hideTagDropdown, 150));
-
-
-  addCodeBtn.addEventListener('click', () => {
-    hasCode = !hasCode;
-    codeBlock.classList.toggle('visible', hasCode);
-    if (hasCode) {
-      codeBlock.contentEditable = 'true';
-      codeBlock.textContent = '// Your code here';
-      codeBlock.focus();
-      addCodeBtn.style.color = 'var(--cyan)';
-    } else {
-      codeBlock.contentEditable = 'false';
-      addCodeBtn.style.color = '';
-    }
-  });
 
   // ── Image picker ──
   imgBtn.addEventListener('click', () => { selectedAttachFile = null; imgInput.click(); });
