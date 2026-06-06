@@ -158,15 +158,15 @@ async function incrementFollowCounts(targetId, followerId) {
       .then(({ error }) => {
         if (error) {
           // RPC not set up — fall back to read-then-write
-          return sb.from('profiles').select('followers_count').eq('id', targetId).single()
-            .then(({ data }) => sb.from('profiles').update({ followers_count: (data?.followers_count || 0) + 1 }).eq('id', targetId));
+          return sb.from('op_profiles').select('followers_count').eq('id', targetId).single()
+            .then(({ data }) => sb.from('op_profiles').update({ followers_count: (data?.followers_count || 0) + 1 }).eq('id', targetId));
         }
       }),
     sb.rpc('increment_col', { row_id: followerId, col: 'following_count' })
       .then(({ error }) => {
         if (error) {
-          return sb.from('profiles').select('following_count').eq('id', followerId).single()
-            .then(({ data }) => sb.from('profiles').update({ following_count: (data?.following_count || 0) + 1 }).eq('id', followerId));
+          return sb.from('op_profiles').select('following_count').eq('id', followerId).single()
+            .then(({ data }) => sb.from('op_profiles').update({ following_count: (data?.following_count || 0) + 1 }).eq('id', followerId));
         }
       }),
   ]);
@@ -182,15 +182,15 @@ async function decrementFollowCounts(targetId, followerId) {
     sb.rpc('decrement_col', { row_id: targetId,   col: 'followers_count' })
       .then(({ error }) => {
         if (error) {
-          return sb.from('profiles').select('followers_count').eq('id', targetId).single()
-            .then(({ data }) => sb.from('profiles').update({ followers_count: Math.max(0, (data?.followers_count || 1) - 1) }).eq('id', targetId));
+          return sb.from('op_profiles').select('followers_count').eq('id', targetId).single()
+            .then(({ data }) => sb.from('op_profiles').update({ followers_count: Math.max(0, (data?.followers_count || 1) - 1) }).eq('id', targetId));
         }
       }),
     sb.rpc('decrement_col', { row_id: followerId, col: 'following_count' })
       .then(({ error }) => {
         if (error) {
-          return sb.from('profiles').select('following_count').eq('id', followerId).single()
-            .then(({ data }) => sb.from('profiles').update({ following_count: Math.max(0, (data?.following_count || 1) - 1) }).eq('id', followerId));
+          return sb.from('op_profiles').select('following_count').eq('id', followerId).single()
+            .then(({ data }) => sb.from('op_profiles').update({ following_count: Math.max(0, (data?.following_count || 1) - 1) }).eq('id', followerId));
         }
       }),
   ]);
@@ -304,7 +304,7 @@ async function renderTagFeed(main, tag) {
   `;
 
   const { data: posts, error } = await sb
-    .from('posts')
+    .from('op_posts')
     .select(`id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, poll,
       profiles!posts_author_id_fkey(id, username, display_name, avatar_url)`)
     .ilike('content', `%#${rawTag}%`)
@@ -322,7 +322,7 @@ async function renderTagFeed(main, tag) {
   if (metaEl) metaEl.textContent = `${posts.length} post${posts.length !== 1 ? 's' : ''}`;
 
   const postIds = posts.map(p => p.id);
-  const { data: likes } = await sb.from('post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
+  const { data: likes } = await sb.from('op_post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
   const likedIds = new Set((likes || []).map(l => l.post_id));
 
   container.innerHTML = '';
@@ -420,7 +420,7 @@ async function bootstrapSchema() {
   // Actual table creation should be done via Supabase Dashboard SQL editor
   // This function checks readiness and primes any missing profile for current user
   try {
-    const { data, error } = await sb.from('profiles').select('id').limit(1);
+    const { data, error } = await sb.from('op_profiles').select('id').limit(1);
     if (error && error.code === '42P01') {
       console.warn('[Devit] Tables not found. Run the SQL setup in Supabase Dashboard.');
       toast('DB tables missing — see console for setup SQL', 'triangle-exclamation');
@@ -881,8 +881,8 @@ async function _syncProfileInBackground(authUser) {
 
   // Run DB fetch and presence upsert in parallel for max speed on mobile
   const [profileResult] = await Promise.all([
-    sb.from('profiles').select('*').eq('id', authUser.id).single(),
-    sb.from('presence').upsert(
+    sb.from('op_profiles').select('*').eq('id', authUser.id).single(),
+    sb.from('op_presence').upsert(
       { id: authUser.id, online: true, last_seen: new Date().toISOString() },
       { onConflict: 'id' }
     ),
@@ -910,7 +910,7 @@ async function _syncProfileInBackground(authUser) {
       ? baseUsername
       : baseUsername.slice(0, 25) + '_' + Math.random().toString(36).slice(2, 6);
     const res = await sb
-      .from('profiles')
+      .from('op_profiles')
       .upsert({
         id: authUser.id, username, display_name, avatar_url,
         bio: '', location: '', website: '',
@@ -998,7 +998,7 @@ async function handleDeepLink() {
   history.replaceState(null, '', '/');
 
   const { data: post, error } = await sb
-    .from('posts')
+    .from('op_posts')
     .select(`
       *,
       profiles!posts_author_id_fkey(id, username, display_name, avatar_url)
@@ -1069,7 +1069,7 @@ function generateInviteCode() {
 async function getOrCreateInviteCode() {
   // Check for existing code
   const { data: existing } = await sb
-    .from('invite_links')
+    .from('op_invite_links')
     .select('code')
     .eq('inviter_id', State.user.id)
     .limit(1)
@@ -1081,7 +1081,7 @@ async function getOrCreateInviteCode() {
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateInviteCode();
     const { data, error } = await sb
-      .from('invite_links')
+      .from('op_invite_links')
       .insert({ code, inviter_id: State.user.id })
       .select('code')
       .single();
@@ -1130,13 +1130,13 @@ async function handleInviteOnLoad() {
 
   // Save code to profile so we can track attribution
   await sb
-    .from('profiles')
+    .from('op_profiles')
     .update({ invited_by_code: code })
     .eq('id', State.user.id);
 
   // Fetch the inviter profile to show in the welcome card
   const { data: invite } = await sb
-    .from('invite_links')
+    .from('op_invite_links')
     .select('inviter_id, profiles(id, username, display_name, avatar_url, bio)')
     .eq('code', code)
     .single();
@@ -1417,7 +1417,7 @@ function initPresenceRealtime() {
 
   // Mark offline on page unload
   window.addEventListener('beforeunload', () => {
-    sb.from('presence').update({ online: false }).eq('id', State.user.id);
+    sb.from('op_presence').update({ online: false }).eq('id', State.user.id);
   });
 }
 
@@ -1432,7 +1432,7 @@ function updatePresenceDots() {
 
 async function loadUnreadCounts() {
   const { count: notifCount } = await sb
-    .from('notifications')
+    .from('op_notifications')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', State.user.id)
     .eq('read', false);
@@ -1440,14 +1440,14 @@ async function loadUnreadCounts() {
 
   // Count unread DMs
   const { data: convos } = await sb
-    .from('conversations')
+    .from('op_conversations')
     .select('id')
     .or(`participant_a.eq.${State.user.id},participant_b.eq.${State.user.id}`);
 
   if (convos?.length) {
     const convoIds = convos.map(c => c.id);
     const { count: msgCount } = await sb
-      .from('messages')
+      .from('op_messages')
       .select('*', { count: 'exact', head: true })
       .in('conversation_id', convoIds)
       .neq('sender_id', State.user.id)
@@ -1511,7 +1511,7 @@ function buildTopbar() {
   $('#nav-messages-btn').addEventListener('click', () => navigateTo('messages'));
   $('#topbar-avatar-btn').addEventListener('click', () => navigateTo('profile'));
   $('#topbar-signout-btn').addEventListener('click', async () => {
-    await sb.from('presence').update({ online: false }).eq('id', State.user.id);
+    await sb.from('op_presence').update({ online: false }).eq('id', State.user.id);
     await sb.auth.signOut();
     toast('Signed out. See you soon!', 'right-from-bracket');
   });
@@ -1573,7 +1573,7 @@ async function runSearch(query) {
 
   // Run profiles + FTS in parallel — one call each, no duplication
   const [profilesRes, ftsRes] = await Promise.all([
-    sb.from('profiles').select('id, username, display_name, avatar_url, bio')
+    sb.from('op_profiles').select('id, username, display_name, avatar_url, bio')
       .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`).limit(5),
     sb.rpc('search_posts_fts', { query_text: tsQuery, max_results: 5 }),
   ]);
@@ -1583,7 +1583,7 @@ async function runSearch(query) {
   if (!ftsRes.error && ftsRes.data) {
     posts = ftsRes.data;
   } else {
-    const { data: ilikePosts } = await sb.from('posts')
+    const { data: ilikePosts } = await sb.from('op_posts')
       .select('id, content, created_at, author_id, profiles(username, display_name, avatar_url)')
       .ilike('content', `%${query}%`).limit(5);
     posts = ilikePosts;
@@ -1683,7 +1683,7 @@ function buildSidebar() {
 
 async function loadSidebarCommunities() {
   const { data } = await sb
-    .from('community_members')
+    .from('op_community_members')
     .select('community_id, communities(id, name, icon, color)')
     .eq('user_id', State.user.id)
     .limit(10);
@@ -1735,7 +1735,7 @@ async function buildRightbar() {
 async function loadWhoToFollow() {
   // Get people the user follows
   const { data: followingData } = await sb
-    .from('follows')
+    .from('op_follows')
     .select('following_id')
     .eq('follower_id', State.user.id);
 
@@ -1743,7 +1743,7 @@ async function loadWhoToFollow() {
   followingIds.push(State.user.id); // exclude self
 
   const { data: suggestions } = await sb
-    .from('profiles')
+    .from('op_profiles')
     .select('id, username, display_name, avatar_url, bio, followers_count')
     .not('id', 'in', `(${followingIds.join(',') || State.user.id})`)
     .order('followers_count', { ascending: false })
@@ -1773,14 +1773,14 @@ async function loadWhoToFollow() {
       const uid = btn.dataset.uid;
       btn.disabled = true;
       btn.textContent = '…';
-      const { error } = await sb.from('follows').insert({ follower_id: State.user.id, following_id: uid });
+      const { error } = await sb.from('op_follows').insert({ follower_id: State.user.id, following_id: uid });
       if (!error) {
         btn.innerHTML = '<i class="fa-solid fa-check"></i> Following';
         btn.style.opacity = '0.5';
         // Increment counts directly — no RPC needed
         await incrementFollowCounts(uid, State.user.id);
         // Notify
-        await sb.from('notifications').insert({ user_id: uid, actor_id: State.user.id, type: 'follow' });
+        await sb.from('op_notifications').insert({ user_id: uid, actor_id: State.user.id, type: 'follow' });
         toast('Followed!', 'user-check');
       } else if (error.code === '23505') {
         // Already following (duplicate key) — treat as success
@@ -1804,7 +1804,7 @@ async function loadTrendingTags() {
     return;
   }
   // Extract hashtags from recent posts
-  const { data: posts } = await sb.from('posts').select('content').order('created_at', { ascending: false }).limit(100);
+  const { data: posts } = await sb.from('op_posts').select('content').order('created_at', { ascending: false }).limit(100);
   const tagCounts = {};
   (posts || []).forEach(p => {
     const matches = p.content.match(/#\w+/g) || [];
@@ -2004,7 +2004,7 @@ async function loadPosts(container, stackFilter = '') {
   container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-muted)">Loading…</div>`;
 
   let query = sb
-    .from('posts')
+    .from('op_posts')
     .select(`
       id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, poll, author_id,
       profiles!posts_author_id_fkey(id, username, display_name, avatar_url, tech_stack)
@@ -2013,7 +2013,7 @@ async function loadPosts(container, stackFilter = '') {
     .limit(30);
 
   if (State.feedTab === 'following') {
-    const { data: following } = await sb.from('follows').select('following_id').eq('follower_id', State.user.id);
+    const { data: following } = await sb.from('op_follows').select('following_id').eq('follower_id', State.user.id);
     const ids = (following || []).map(f => f.following_id);
     if (!ids.length) {
       container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">Follow some people to see their posts here 🌱</div>`;
@@ -2038,8 +2038,8 @@ async function loadPosts(container, stackFilter = '') {
   const postIds = filteredPosts.map(p => p.id);
   let likedIds = new Set(), bookmarkedIds = new Set();
   if (postIds.length) {
-    const { data: likes } = await sb.from('post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
-    const { data: bookmarks } = await sb.from('bookmarks').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
+    const { data: likes } = await sb.from('op_post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
+    const { data: bookmarks } = await sb.from('op_bookmarks').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
     likedIds = new Set((likes || []).map(l => l.post_id));
     bookmarkedIds = new Set((bookmarks || []).map(b => b.post_id));
   }
@@ -2067,7 +2067,7 @@ function subscribeToNewPosts(container) {
     'INSERT',
     async payload => {
       const newPost = payload.new;
-      const { data: profile } = await sb.from('profiles').select('id, username, display_name, avatar_url').eq('id', newPost.author_id).single();
+      const { data: profile } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').eq('id', newPost.author_id).single();
       if (profile && newPost.author_id !== State.user.id) {
         const card = buildPostCard(newPost, profile, false, false);
         card.style.opacity = '0';
@@ -2113,7 +2113,7 @@ async function renderDevActivityFeed(container) {
   // Fetch GitHub events for the user + who they follow
   const token = await (async () => {
     try {
-      const { data } = await sb.from('github_tokens').select('access_token').eq('user_id', State.user.id).single();
+      const { data } = await sb.from('op_github_tokens').select('access_token').eq('user_id', State.user.id).single();
       return data?.access_token || null;
     } catch { return null; }
   })();
@@ -2298,7 +2298,7 @@ function buildComposer(container) {
   let _tagCache = null;
   async function ensureTagCache() {
     if (_tagCache) return;
-    const { data: posts } = await sb.from('posts').select('content').order('created_at', { ascending: false }).limit(150);
+    const { data: posts } = await sb.from('op_posts').select('content').order('created_at', { ascending: false }).limit(150);
     _tagCache = {};
     (posts || []).forEach(p => {
       (p.content.match(/#(\w+)/g) || []).forEach(t => {
@@ -2588,7 +2588,7 @@ function buildComposer(container) {
 
     const { data: newPost, error } = await MutationGuard.wrapInsert(
       'post',
-      () => sb.from('posts').insert(postData).select().single()
+      () => sb.from('op_posts').insert(postData).select().single()
     );
     if (error) {
       if (!error.blocked) toast('Failed to post: ' + error.message, 'circle-exclamation');
@@ -2615,7 +2615,7 @@ function buildComposer(container) {
 
       // Check for new milestone badges after posting
       setTimeout(async () => {
-        const { data: freshProfile } = await sb.from('profiles').select('*').eq('id', State.user.id).single();
+        const { data: freshProfile } = await sb.from('op_profiles').select('*').eq('id', State.user.id).single();
         if (!freshProfile) return;
         const earned = computeBadges(freshProfile);
         const prevBadges = computeBadges({ ...freshProfile, posts_count: (freshProfile.posts_count || 1) - 1 });
@@ -2637,7 +2637,7 @@ function buildComposer(container) {
       // Notify all followers about the new post (fire and forget)
       if (newPost?.id) {
         const postSnippet = (text || '').slice(0, 100) || 'New post';
-        sb.from('follows').select('follower_id').eq('following_id', State.user.id).then(({ data: followers }) => {
+        sb.from('op_follows').select('follower_id').eq('following_id', State.user.id).then(({ data: followers }) => {
           if (!followers?.length) return;
           const notifications = followers.map(f => ({
             user_id: f.follower_id,
@@ -2646,7 +2646,7 @@ function buildComposer(container) {
             post_id: newPost.id,
             post_title: postSnippet,
           }));
-          sb.from('notifications').insert(notifications).then(() => {});
+          sb.from('op_notifications').insert(notifications).then(() => {});
         });
       }
     }
@@ -2747,7 +2747,7 @@ function buildPostCard(post, profile, isLiked = false, isBookmarked = false) {
     if (likedState) {
       const { error: likeErr } = await MutationGuard.wrapInsert(
         'like',
-        () => sb.from('post_likes').insert({ post_id: post.id, user_id: State.user.id })
+        () => sb.from('op_post_likes').insert({ post_id: post.id, user_id: State.user.id })
       );
       if (likeErr?.blocked) {
         // Undo optimistic UI update — insert was blocked by rate limit
@@ -2758,11 +2758,11 @@ function buildPostCard(post, profile, isLiked = false, isBookmarked = false) {
       } else if (!likeErr) {
         // Notify author if not self
         if (post.author_id !== State.user.id) {
-          await sb.from('notifications').insert({ user_id: post.author_id, actor_id: State.user.id, type: 'like', post_id: post.id });
+          await sb.from('op_notifications').insert({ user_id: post.author_id, actor_id: State.user.id, type: 'like', post_id: post.id });
         }
       }
     } else {
-      await sb.from('post_likes').delete().eq('post_id', post.id).eq('user_id', State.user.id);
+      await sb.from('op_post_likes').delete().eq('post_id', post.id).eq('user_id', State.user.id);
     }
   });
 
@@ -2775,10 +2775,10 @@ function buildPostCard(post, profile, isLiked = false, isBookmarked = false) {
     bookmarkBtn.classList.toggle('bookmarked', bookmarkedState);
     bookmarkBtn.querySelector('svg').setAttribute('fill', bookmarkedState ? 'currentColor' : 'none');
     if (bookmarkedState) {
-      await sb.from('bookmarks').insert({ post_id: post.id, user_id: State.user.id });
+      await sb.from('op_bookmarks').insert({ post_id: post.id, user_id: State.user.id });
       toast('Saved to bookmarks', 'bookmark');
     } else {
-      await sb.from('bookmarks').delete().eq('post_id', post.id).eq('user_id', State.user.id);
+      await sb.from('op_bookmarks').delete().eq('post_id', post.id).eq('user_id', State.user.id);
       toast('Removed from bookmarks', 'bookmark');
     }
   });
@@ -2908,7 +2908,7 @@ function openPostThread(post, profile) {
     input.value = '';
     const { error } = await MutationGuard.wrapInsert(
       'comment',
-      () => sb.from('comments').insert({ post_id: post.id, author_id: State.user.id, content: text })
+      () => sb.from('op_comments').insert({ post_id: post.id, author_id: State.user.id, content: text })
     );
     if (error?.blocked) {
       toast(error.message, 'clock');
@@ -2918,7 +2918,7 @@ function openPostThread(post, profile) {
     if (!error) {
       loadComments(post.id);
       if (post.author_id !== State.user.id) {
-        await sb.from('notifications').insert({ user_id: post.author_id, actor_id: State.user.id, type: 'comment', post_id: post.id });
+        await sb.from('op_notifications').insert({ user_id: post.author_id, actor_id: State.user.id, type: 'comment', post_id: post.id });
       }
     }
   };
@@ -2941,7 +2941,7 @@ async function loadComments(postId) {
   const container = $('#comment-list');
   if (!container) return;
   const { data: comments } = await sb
-    .from('comments')
+    .from('op_comments')
     .select('id, content, created_at, profiles!comments_author_id_fkey(id, username, display_name, avatar_url)')
     .eq('post_id', postId)
     .order('created_at', { ascending: true });
@@ -2953,7 +2953,7 @@ async function loadComments(postId) {
 
   // Fetch comment likes for current user
   const commentIds = comments.map(c => c.id);
-  const { data: myLikes } = await sb.from('comment_likes').select('comment_id, vote').eq('user_id', State.user.id).in('comment_id', commentIds);
+  const { data: myLikes } = await sb.from('op_comment_likes').select('comment_id, vote').eq('user_id', State.user.id).in('comment_id', commentIds);
   const likeMap = {};
   (myLikes || []).forEach(l => { likeMap[l.comment_id] = l.vote; });
 
@@ -2987,10 +2987,10 @@ async function loadComments(postId) {
       const current = likeMap[cid];
       if (current === vote) {
         // toggle off
-        await sb.from('comment_likes').delete().eq('comment_id', cid).eq('user_id', State.user.id);
+        await sb.from('op_comment_likes').delete().eq('comment_id', cid).eq('user_id', State.user.id);
         delete likeMap[cid];
       } else {
-        await sb.from('comment_likes').upsert({ comment_id: cid, user_id: State.user.id, vote }, { onConflict: 'comment_id,user_id' });
+        await sb.from('op_comment_likes').upsert({ comment_id: cid, user_id: State.user.id, vote }, { onConflict: 'comment_id,user_id' });
         likeMap[cid] = vote;
       }
       // Re-render votes in-place
@@ -3049,8 +3049,8 @@ async function renderExplore(main) {
 
     if (tabId === 'discover') {
       const [peopleRes, communityRes] = await Promise.all([
-        sb.from('profiles').select('id, username, display_name, avatar_url, bio, followers_count, tech_stack, is_github').neq('id', State.user.id).order('followers_count', { ascending: false }).limit(8),
-        sb.from('communities').select('id, name, icon, color, description, members_count').order('members_count', { ascending: false }).limit(6),
+        sb.from('op_profiles').select('id, username, display_name, avatar_url, bio, followers_count, tech_stack, is_github').neq('id', State.user.id).order('followers_count', { ascending: false }).limit(8),
+        sb.from('op_communities').select('id, name, icon, color, description, members_count').order('members_count', { ascending: false }).limit(6),
       ]);
       const people = peopleRes.data || [];
       const communities = communityRes.data || [];
@@ -3098,10 +3098,10 @@ async function renderExplore(main) {
           e.stopPropagation();
           const uid = btn.dataset.uid;
           btn.disabled = true; btn.textContent = '…';
-          const { error } = await sb.from('follows').insert({ follower_id: State.user.id, following_id: uid });
+          const { error } = await sb.from('op_follows').insert({ follower_id: State.user.id, following_id: uid });
           if (!error || error.code === '23505') {
             await incrementFollowCounts(uid, State.user.id);
-            await sb.from('notifications').insert({ user_id: uid, actor_id: State.user.id, type: 'follow' });
+            await sb.from('op_notifications').insert({ user_id: uid, actor_id: State.user.id, type: 'follow' });
             btn.innerHTML = '<i class="fa-solid fa-check"></i> Following'; btn.style.opacity = '0.6';
           } else { btn.textContent = 'Follow'; btn.disabled = false; }
         });
@@ -3114,7 +3114,7 @@ async function renderExplore(main) {
         btn.addEventListener('click', async e => {
           e.stopPropagation();
           if (btn.classList.contains('joined')) return;
-          await sb.from('community_members').insert({ community_id: btn.dataset.cid, user_id: State.user.id });
+          await sb.from('op_community_members').insert({ community_id: btn.dataset.cid, user_id: State.user.id });
           btn.innerHTML = '<i class="fa-solid fa-check"></i> Joined'; btn.classList.add('joined');
           toast('Joined!', 'circle-check'); loadSidebarCommunities();
         });
@@ -3122,7 +3122,7 @@ async function renderExplore(main) {
       $('#create-community-btn', content)?.addEventListener('click', openCreateCommunityModal);
 
     } else if (tabId === 'trending') {
-      const { data: posts } = await sb.from('posts')
+      const { data: posts } = await sb.from('op_posts')
         .select('id, content, code_block, code_lang, image_url, likes_count, comments_count, reposts_count, created_at, author_id, profiles!posts_author_id_fkey(id, username, display_name, avatar_url)')
         .order('likes_count', { ascending: false })
         .limit(20);
@@ -3130,7 +3130,7 @@ async function renderExplore(main) {
       const feed = $('#trending-posts-feed', content);
       if (!posts?.length) { feed.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">No trending posts yet 🌱</div>`; return; }
       const postIds = posts.map(p => p.id);
-      const { data: likes } = await sb.from('post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
+      const { data: likes } = await sb.from('op_post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
       const likedIds = new Set((likes || []).map(l => l.post_id));
       posts.forEach((p, i) => {
         const rankEl = document.createElement('div');
@@ -3141,7 +3141,7 @@ async function renderExplore(main) {
       });
 
     } else if (tabId === 'collab') {
-      const { data: posts } = await sb.from('posts')
+      const { data: posts } = await sb.from('op_posts')
         .select('id, content, code_block, code_lang, image_url, likes_count, comments_count, reposts_count, created_at, author_id, collab_tags, profiles!posts_author_id_fkey(id, username, display_name, avatar_url)')
         .not('collab_tags', 'is', null)
         .order('created_at', { ascending: false })
@@ -3158,7 +3158,7 @@ async function renderExplore(main) {
         return;
       }
       const postIds = posts.map(p => p.id);
-      const { data: likes } = await sb.from('post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
+      const { data: likes } = await sb.from('op_post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
       const likedIds = new Set((likes || []).map(l => l.post_id));
       posts.forEach(p => feed.appendChild(buildPostCard(p, p.profiles, likedIds.has(p.id), false)));
 
@@ -3178,7 +3178,7 @@ async function renderExplore(main) {
           const stack = chip.dataset.stack;
           const peopleEl = $('#stack-browse-people', content);
           peopleEl.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:16px"><i class="fa-solid fa-spinner fa-spin"></i></div>`;
-          const { data: devs } = await sb.from('profiles').select('id, username, display_name, avatar_url, bio, tech_stack, is_github').contains('tech_stack', [stack]).neq('id', State.user.id).limit(12);
+          const { data: devs } = await sb.from('op_profiles').select('id, username, display_name, avatar_url, bio, tech_stack, is_github').contains('tech_stack', [stack]).neq('id', State.user.id).limit(12);
           if (!devs?.length) { peopleEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px">No devs with <strong>${escapeHtml(stack)}</strong> in their stack yet</div>`; return; }
           peopleEl.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:10px">${devs.length} developer${devs.length!==1?'s':''} using <span style="color:var(--cyan)">${escapeHtml(stack)}</span></div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px">
             ${devs.map(p => `<div class="explore-person-card" data-uid="${p.id}">
@@ -3190,7 +3190,7 @@ async function renderExplore(main) {
           $$('.follow-btn', peopleEl).forEach(btn => {
             btn.addEventListener('click', async e => {
               e.stopPropagation(); const uid = btn.dataset.uid; btn.disabled=true; btn.textContent='…';
-              const { error } = await sb.from('follows').insert({ follower_id: State.user.id, following_id: uid });
+              const { error } = await sb.from('op_follows').insert({ follower_id: State.user.id, following_id: uid });
               if (!error || error.code==='23505') { await incrementFollowCounts(uid, State.user.id); btn.innerHTML='<i class="fa-solid fa-check"></i> Following'; btn.style.opacity='0.6'; }
               else { btn.textContent='Follow'; btn.disabled=false; }
             });
@@ -3293,7 +3293,7 @@ function openCreateCommunityModal() {
     btn.disabled = true;
     btn.textContent = 'Creating…';
 
-    const { data: community, error } = await sb.from('communities').insert({
+    const { data: community, error } = await sb.from('op_communities').insert({
       name, description: desc, icon: selectedIcon, color: selectedColor,
       owner_id: State.user.id, members_count: 1
     }).select().single();
@@ -3306,14 +3306,14 @@ function openCreateCommunityModal() {
     }
 
     // Create default channels
-    await sb.from('channels').insert([
+    await sb.from('op_channels').insert([
       { community_id: community.id, name: 'general', type: 'text' },
       { community_id: community.id, name: 'showcase', type: 'text' },
       { community_id: community.id, name: 'help', type: 'text' },
     ]);
 
     // Join as owner
-    await sb.from('community_members').insert({ community_id: community.id, user_id: State.user.id, role: 'owner' });
+    await sb.from('op_community_members').insert({ community_id: community.id, user_id: State.user.id, role: 'owner' });
 
     modal.classList.remove('open');
     toast(`${selectedIcon} ${name} created!`, '🎉');
@@ -3324,16 +3324,16 @@ function openCreateCommunityModal() {
 
 /* ── Community View ─────────────────────────────────────────── */
 async function openCommunity(communityId) {
-  const { data: community } = await sb.from('communities').select('*').eq('id', communityId).single();
+  const { data: community } = await sb.from('op_communities').select('*').eq('id', communityId).single();
   if (!community) return;
   State.currentCommunity = community;
   State.currentView = 'community';
   showPresence();
   updateSidebarActive();
 
-  const { data: channels } = await sb.from('channels').select('*').eq('community_id', communityId).order('created_at');
-  const { data: memberCount } = await sb.from('community_members').select('*', { count: 'exact', head: true }).eq('community_id', communityId);
-  const isJoined = !!(await sb.from('community_members').select('id').eq('community_id', communityId).eq('user_id', State.user.id).single()).data;
+  const { data: channels } = await sb.from('op_channels').select('*').eq('community_id', communityId).order('created_at');
+  const { data: memberCount } = await sb.from('op_community_members').select('*', { count: 'exact', head: true }).eq('community_id', communityId);
+  const isJoined = !!(await sb.from('op_community_members').select('id').eq('community_id', communityId).eq('user_id', State.user.id).single()).data;
 
   const main = $('#main');
   main.innerHTML = '';
@@ -3381,7 +3381,7 @@ async function openCommunity(communityId) {
   const joinBtn = $('#join-community-btn', view);
   if (joinBtn) {
     joinBtn.addEventListener('click', async () => {
-      await sb.from('community_members').insert({ community_id: communityId, user_id: State.user.id });
+      await sb.from('op_community_members').insert({ community_id: communityId, user_id: State.user.id });
       joinBtn.remove();
       toast('Joined!', 'circle-check');
       loadSidebarCommunities();
@@ -3412,7 +3412,7 @@ async function openCommunity(communityId) {
         const cleanName = name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
         confirmBtn.disabled = true;
         confirmBtn.textContent = 'Creating…';
-        const { data: newCh } = await sb.from('channels').insert({ community_id: communityId, name: cleanName, type: 'text' }).select().single();
+        const { data: newCh } = await sb.from('op_channels').insert({ community_id: communityId, name: cleanName, type: 'text' }).select().single();
         modal.classList.remove('open');
         if (newCh) openCommunity(communityId);
       };
@@ -3450,7 +3450,7 @@ async function renderChannelChat(container, channel) {
 
   // Load pinned resources
   async function loadPinnedResources() {
-    const { data: pins } = await sb.from('channel_pins').select('*').eq('channel_id', channel.id).order('created_at', { ascending: false }).limit(5);
+    const { data: pins } = await sb.from('op_channel_pins').select('*').eq('channel_id', channel.id).order('created_at', { ascending: false }).limit(5);
     const bar = container.querySelector('#pinned-resources-bar');
     if (!bar) return;
     if (!pins?.length) { bar.style.display = 'none'; return; }
@@ -3495,7 +3495,7 @@ async function renderChannelChat(container, channel) {
       const title = document.getElementById('pin-title').value.trim();
       const url   = document.getElementById('pin-url').value.trim();
       if (!title || !url) { toast('Enter title and URL', 'triangle-exclamation'); return; }
-      const { error } = await sb.from('channel_pins').insert({ channel_id: channel.id, author_id: State.user.id, title, url, emoji });
+      const { error } = await sb.from('op_channel_pins').insert({ channel_id: channel.id, author_id: State.user.id, title, url, emoji });
       if (!error) { modal.classList.remove('open'); loadPinnedResources(); toast('Resource pinned!', 'thumbtack'); }
       else toast('Failed: ' + error.message, 'circle-exclamation');
     });
@@ -3505,7 +3505,7 @@ async function renderChannelChat(container, channel) {
 
   // Load existing messages
   const { data: messages } = await sb
-    .from('channel_messages')
+    .from('op_channel_messages')
     .select('id, content, created_at, profiles!channel_messages_author_id_fkey(id, username, display_name, avatar_url)')
     .eq('channel_id', channel.id)
     .order('created_at', { ascending: true })
@@ -3526,7 +3526,7 @@ async function renderChannelChat(container, channel) {
     async payload => {
       const msg = payload.new;
       if (msg.author_id === State.user.id) return; // own messages shown immediately
-      const { data: profile } = await sb.from('profiles').select('id, username, display_name, avatar_url').eq('id', msg.author_id).single();
+      const { data: profile } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').eq('id', msg.author_id).single();
       msg.profiles = profile;
       const prev = msgList.lastElementChild;
       const isCont = prev && prev.dataset.uid === msg.author_id;
@@ -3548,7 +3548,7 @@ async function renderChannelChat(container, channel) {
     const msgData = { channel_id: channel.id, author_id: State.user.id, content: text };
     const { data: msg, error: msgErr } = await MutationGuard.wrapInsert(
       'channel_msg',
-      () => sb.from('channel_messages').insert(msgData).select().single()
+      () => sb.from('op_channel_messages').insert(msgData).select().single()
     );
     if (msgErr?.blocked) return;
     if (msg) {
@@ -3582,7 +3582,7 @@ function buildChannelMessage(msg, isContinuation) {
 
 async function renderCommunityMembers(container, communityId) {
   const { data: members } = await sb
-    .from('community_members')
+    .from('op_community_members')
     .select('user_id, role, profiles!community_members_user_id_fkey(id, username, display_name, avatar_url)')
     .eq('community_id', communityId)
     .limit(20);
@@ -3633,7 +3633,7 @@ async function renderNotifications(main) {
   `;
 
   $('#mark-all-read').addEventListener('click', async () => {
-    await sb.from('notifications').update({ read: true }).eq('user_id', State.user.id);
+    await sb.from('op_notifications').update({ read: true }).eq('user_id', State.user.id);
     State.unreadNotifs = 0;
     updateBadges();
     loadNotifications();
@@ -3653,7 +3653,7 @@ async function loadNotifications() {
   let queryError = null;
 
   const { data: d1, error: e1 } = await sb
-    .from('notifications')
+    .from('op_notifications')
     .select('id, type, read, created_at, post_id, post_title, actor_id')
     .eq('user_id', State.user.id)
     .order('created_at', { ascending: false })
@@ -3663,7 +3663,7 @@ async function loadNotifications() {
     console.warn('[Devit] notifications full query failed:', e1.message, e1.code);
     // Fallback: try without actor_id (in case column doesn't exist yet)
     const { data: d2, error: e2 } = await sb
-      .from('notifications')
+      .from('op_notifications')
       .select('id, type, read, created_at, post_id, post_title')
       .eq('user_id', State.user.id)
       .order('created_at', { ascending: false })
@@ -3692,7 +3692,7 @@ async function loadNotifications() {
   let actorMap = {};
   if (actorIds.length) {
     const { data: actors } = await sb
-      .from('profiles')
+      .from('op_profiles')
       .select('id, username, display_name, avatar_url')
       .in('id', actorIds);
     (actors || []).forEach(a => { actorMap[a.id] = a; });
@@ -3750,12 +3750,12 @@ async function loadNotifications() {
       // Remove the unread dot
       const dot = item.querySelector('div[style*="background:var(--cyan)"]');
       if (dot) dot.remove();
-      await sb.from('notifications').update({ read: true }).eq('id', item.dataset.nid);
+      await sb.from('op_notifications').update({ read: true }).eq('id', item.dataset.nid);
       State.unreadNotifs = Math.max(0, State.unreadNotifs - 1);
       updateBadges();
       // Navigate to post if applicable
       if (item.dataset.postId && item.dataset.postId !== 'null') {
-        const { data: post } = await sb.from('posts').select('*, profiles!posts_author_id_fkey(id,username,display_name,avatar_url)').eq('id', item.dataset.postId).single();
+        const { data: post } = await sb.from('op_posts').select('*, profiles!posts_author_id_fkey(id,username,display_name,avatar_url)').eq('id', item.dataset.postId).single();
         if (post) openPostThread(post, post.profiles);
       } else if (item.dataset.actorId && item.dataset.actorId !== 'null') {
         // For follows, link requests etc. — go to their profile
@@ -3820,7 +3820,7 @@ async function loadConversations(preserveActiveConvoId = null) {
   const currentlyOpenId = preserveActiveConvoId || activeItem?.dataset.cid || null;
 
   const { data: convos } = await sb
-    .from('conversations')
+    .from('op_conversations')
     .select('id, last_message, last_message_at, participant_a, participant_b, hidden_for')
     .or(`participant_a.eq.${State.user.id},participant_b.eq.${State.user.id}`)
     .order('last_message_at', { ascending: false });
@@ -3838,7 +3838,7 @@ async function loadConversations(preserveActiveConvoId = null) {
 
   // Fetch other participant profiles
   const otherIds = visibleConvos.map(c => c.participant_a === State.user.id ? c.participant_b : c.participant_a);
-  const { data: profiles } = await sb.from('profiles').select('id, username, display_name, avatar_url').in('id', otherIds);
+  const { data: profiles } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').in('id', otherIds);
   const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
 
   container.innerHTML = visibleConvos.map(c => {
@@ -3898,10 +3898,10 @@ async function loadConversations(preserveActiveConvoId = null) {
       // Hide for this user — uses a hidden_for array column.
       // If your DB doesn't have this column yet, add it:
       // ALTER TABLE conversations ADD COLUMN IF NOT EXISTS hidden_for uuid[] DEFAULT '{}';
-      const { data: convo } = await sb.from('conversations').select('hidden_for').eq('id', convoId).single();
+      const { data: convo } = await sb.from('op_conversations').select('hidden_for').eq('id', convoId).single();
       const existing = convo?.hidden_for || [];
       if (!existing.includes(State.user.id)) {
-        await sb.from('conversations')
+        await sb.from('op_conversations')
           .update({ hidden_for: [...existing, State.user.id] })
           .eq('id', convoId);
       }
@@ -3926,13 +3926,13 @@ async function canDM(targetId, dmPrivacy, isFollowing) {
   if (setting === 'everyone') return true;
   // 'followers' — check if current user follows target
   if (isFollowing !== undefined) return !!isFollowing;
-  const { data } = await sb.from('follows').select('id').eq('follower_id', State.user.id).eq('following_id', targetId).single();
+  const { data } = await sb.from('op_follows').select('id').eq('follower_id', State.user.id).eq('following_id', targetId).single();
   return !!data;
 }
 
 // ── Open DM conversation view ─────────────────────────────────
 async function openDM(convoId, otherUserId, container) {
-  const { data: other } = await sb.from('profiles').select('id, username, display_name, avatar_url').eq('id', otherUserId).single();
+  const { data: other } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').eq('id', otherUserId).single();
   const isOnline = State.onlineUsers.has(otherUserId);
   const color = avatarColor(other?.display_name || other?.username || '?');
 
@@ -3977,7 +3977,7 @@ async function openDM(convoId, otherUserId, container) {
 
   // Load messages
   const { data: messages } = await sb
-    .from('messages')
+    .from('op_messages')
     .select('id, content, sender_id, created_at')
     .eq('conversation_id', convoId)
     .order('created_at', { ascending: true });
@@ -4007,7 +4007,7 @@ async function openDM(convoId, otherUserId, container) {
   msgList.scrollTop = msgList.scrollHeight;
 
   // Mark unread as read
-  await sb.from('messages').update({ read: true }).eq('conversation_id', convoId).neq('sender_id', State.user.id);
+  await sb.from('op_messages').update({ read: true }).eq('conversation_id', convoId).neq('sender_id', State.user.id);
 
   // ── Typing indicator helpers ──────────────────────────────────
   const typingBar = document.getElementById('dm-typing-bar');
@@ -4052,7 +4052,7 @@ async function openDM(convoId, otherUserId, container) {
       listEl.appendChild(buildDMMessage(msg, other, color));
       listEl.scrollTop = listEl.scrollHeight;
       // Mark as read instantly since the chat is open
-      sb.from('messages').update({ read: true }).eq('id', msg.id);
+      sb.from('op_messages').update({ read: true }).eq('id', msg.id);
     })
     .on('broadcast', { event: 'typing' }, ({ payload }) => {
       if (payload?.userId === State.user.id) return;
@@ -4091,7 +4091,7 @@ async function openDM(convoId, otherUserId, container) {
     inputEl.value = '';
 
     const now = new Date().toISOString();
-    const { data: msg, error } = await sb.from('messages').insert({
+    const { data: msg, error } = await sb.from('op_messages').insert({
       conversation_id: convoId,
       sender_id: State.user.id,
       content: text,
@@ -4120,7 +4120,7 @@ async function openDM(convoId, otherUserId, container) {
         payload: { ...msg },
       });
       // Update convo preview
-      await sb.from('conversations').update({ last_message: text, last_message_at: msg.created_at }).eq('id', convoId);
+      await sb.from('op_conversations').update({ last_message: text, last_message_at: msg.created_at }).eq('id', convoId);
     }
   }
 
@@ -4193,7 +4193,7 @@ function openNewDMModal() {
     const q = e.target.value.trim();
     if (q.length < 1) return;
     searchTimeout = setTimeout(async () => {
-      const { data: people } = await sb.from('profiles').select('id, username, display_name, avatar_url').or(`username.ilike.%${q}%,display_name.ilike.%${q}%`).neq('id', State.user.id).limit(6);
+      const { data: people } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').or(`username.ilike.%${q}%,display_name.ilike.%${q}%`).neq('id', State.user.id).limit(6);
       const results = $('#dm-search-results');
       if (!results) return;
       results.innerHTML = (people || []).map(p => `
@@ -4208,9 +4208,9 @@ function openNewDMModal() {
           // Get or create conversation
           const a = State.user.id < uid ? State.user.id : uid;
           const b = State.user.id < uid ? uid : State.user.id;
-          let { data: convo } = await sb.from('conversations').select('id').eq('participant_a', a).eq('participant_b', b).single();
+          let { data: convo } = await sb.from('op_conversations').select('id').eq('participant_a', a).eq('participant_b', b).single();
           if (!convo) {
-            const { data: newConvo } = await sb.from('conversations').insert({ participant_a: a, participant_b: b }).select().single();
+            const { data: newConvo } = await sb.from('op_conversations').insert({ participant_a: a, participant_b: b }).select().single();
             convo = newConvo;
           }
           modal.classList.remove('open');
@@ -4231,12 +4231,12 @@ async function renderProfile(main, userId = null) {
   const targetId = userId || State.user.id;
   const isOwn = targetId === State.user.id;
 
-  const { data: profile } = await sb.from('profiles').select('*').eq('id', targetId).single();
+  const { data: profile } = await sb.from('op_profiles').select('*').eq('id', targetId).single();
   if (!profile) { main.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">Profile not found</div>`; return; }
 
   // ── Private profile gate ──────────────────────────────────────
   if (!isOwn && profile.profile_visibility === 'private') {
-    const isFollowing_check = !!(await sb.from('follows').select('id').eq('follower_id', State.user.id).eq('following_id', targetId).single()).data;
+    const isFollowing_check = !!(await sb.from('op_follows').select('id').eq('follower_id', State.user.id).eq('following_id', targetId).single()).data;
     if (!isFollowing_check) {
       const color2 = avatarColor(profile.display_name || profile.username || '?');
       main.innerHTML = `
@@ -4266,10 +4266,10 @@ async function renderProfile(main, userId = null) {
       document.getElementById('private-follow-btn')?.addEventListener('click', async () => {
         const btn = document.getElementById('private-follow-btn');
         btn.disabled = true; btn.textContent = 'Following…';
-        const { error } = await sb.from('follows').insert({ follower_id: State.user.id, following_id: targetId });
+        const { error } = await sb.from('op_follows').insert({ follower_id: State.user.id, following_id: targetId });
         if (!error || error.code === '23505') {
           await incrementFollowCounts(targetId, State.user.id);
-          await sb.from('notifications').insert({ user_id: targetId, actor_id: State.user.id, type: 'follow' });
+          await sb.from('op_notifications').insert({ user_id: targetId, actor_id: State.user.id, type: 'follow' });
           btn.textContent = 'Following ✓';
           toast('Followed!', 'user-check');
         } else {
@@ -4280,7 +4280,7 @@ async function renderProfile(main, userId = null) {
     }
   }
 
-  const isFollowing = !isOwn ? !!(await sb.from('follows').select('id').eq('follower_id', State.user.id).eq('following_id', targetId).single()).data : false;
+  const isFollowing = !isOwn ? !!(await sb.from('op_follows').select('id').eq('follower_id', State.user.id).eq('following_id', targetId).single()).data : false;
   const color = avatarColor(profile.display_name || profile.username || '?');
 
   const safeName     = escapeHtml(profile.display_name || profile.username || 'Unknown');
@@ -4352,7 +4352,7 @@ async function renderProfile(main, userId = null) {
     followBtn.addEventListener('click', async () => {
       followBtn.disabled = true;
       if (followState) {
-        const { error } = await sb.from('follows').delete().eq('follower_id', State.user.id).eq('following_id', targetId);
+        const { error } = await sb.from('op_follows').delete().eq('follower_id', State.user.id).eq('following_id', targetId);
         if (!error) {
           await decrementFollowCounts(targetId, State.user.id);
           followState = false;
@@ -4364,10 +4364,10 @@ async function renderProfile(main, userId = null) {
           if (statEls[1]) statEls[1].textContent = fmtNum(Math.max(0, (parseInt(statEls[1].textContent.replace(/[^\d]/g,'')) || 1) - 1));
         }
       } else {
-        const { error } = await sb.from('follows').insert({ follower_id: State.user.id, following_id: targetId });
+        const { error } = await sb.from('op_follows').insert({ follower_id: State.user.id, following_id: targetId });
         if (!error || error.code === '23505') {
           await incrementFollowCounts(targetId, State.user.id);
-          await sb.from('notifications').insert({ user_id: targetId, actor_id: State.user.id, type: 'follow' });
+          await sb.from('op_notifications').insert({ user_id: targetId, actor_id: State.user.id, type: 'follow' });
           followState = true;
           followBtn.textContent = 'Unfollow';
           followBtn.className = 'profile-action-btn secondary';
@@ -4397,9 +4397,9 @@ async function renderProfile(main, userId = null) {
       dmBtn.addEventListener('click', async () => {
         const a = State.user.id < targetId ? State.user.id : targetId;
         const b = State.user.id < targetId ? targetId : State.user.id;
-        let { data: convo } = await sb.from('conversations').select('id').eq('participant_a', a).eq('participant_b', b).single();
+        let { data: convo } = await sb.from('op_conversations').select('id').eq('participant_a', a).eq('participant_b', b).single();
         if (!convo) {
-          const { data: newConvo } = await sb.from('conversations').insert({ participant_a: a, participant_b: b }).select().single();
+          const { data: newConvo } = await sb.from('op_conversations').insert({ participant_a: a, participant_b: b }).select().single();
           convo = newConvo;
         }
         navigateTo('messages');
@@ -4446,7 +4446,7 @@ async function renderProfile(main, userId = null) {
   if (techStackEl && profile.tech_stack?.length) {
     const skills = profile.tech_stack;
     // Load endorsement counts
-    sb.from('stack_endorsements')
+    sb.from('op_stack_endorsements')
       .select('skill')
       .eq('profile_id', targetId)
       .then(({ data: endorsements }) => {
@@ -4465,7 +4465,7 @@ async function renderProfile(main, userId = null) {
         badge.addEventListener('click', async e => {
           e.stopPropagation();
           const skill = badge.dataset.skill;
-          const { error } = await sb.from('stack_endorsements').upsert(
+          const { error } = await sb.from('op_stack_endorsements').upsert(
             { profile_id: targetId, endorser_id: State.user.id, skill },
             { onConflict: 'profile_id,endorser_id,skill' }
           );
@@ -4488,7 +4488,7 @@ async function loadProfilePosts(container, userId) {
   if (!container) return;
   container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-muted)">Loading…</div>`;
   const { data: posts } = await sb
-    .from('posts')
+    .from('op_posts')
     .select('id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, author_id, profiles!posts_author_id_fkey(id, username, display_name, avatar_url)')
     .eq('author_id', userId)
     .order('created_at', { ascending: false });
@@ -4496,7 +4496,7 @@ async function loadProfilePosts(container, userId) {
   if (!posts?.length) { container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">No posts yet</div>`; return; }
 
   const postIds = posts.map(p => p.id);
-  const { data: likes } = await sb.from('post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
+  const { data: likes } = await sb.from('op_post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
   const likedIds = new Set((likes || []).map(l => l.post_id));
 
   container.innerHTML = '';
@@ -4621,7 +4621,7 @@ async function renderLeaderboard(main) {
 
     try {
       const { data: users, error } = await sb
-        .from('profiles')
+        .from('op_profiles')
         .select('id, username, display_name, avatar_url, ' + tab.col)
         .order(tab.col, { ascending: false })
         .limit(50);
@@ -4725,7 +4725,7 @@ async function renderBookmarks(main) {
   `;
 
   const { data: bookmarks } = await sb
-    .from('bookmarks')
+    .from('op_bookmarks')
     .select('post_id, posts(id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, created_at, profiles!posts_author_id_fkey(id, username, display_name, avatar_url))')
     .eq('user_id', State.user.id)
     .order('created_at', { ascending: false });
@@ -4780,7 +4780,7 @@ function renderSettings(main) {
 
   $('#settings-edit-profile').addEventListener('click', () => navigateTo('edit-profile'));
   $('#settings-signout').addEventListener('click', async () => {
-    await sb.from('presence').update({ online: false }).eq('id', State.user.id);
+    await sb.from('op_presence').update({ online: false }).eq('id', State.user.id);
     await sb.auth.signOut();
   });
 }
@@ -4894,7 +4894,7 @@ function renderEditProfile(main) {
   async function savePrivacySetting(field, value) {
     const statusEl = document.getElementById('ep-privacy-status');
     if (statusEl) { statusEl.textContent = 'Saving…'; statusEl.style.display = 'block'; statusEl.style.color = 'var(--text-muted)'; }
-    const { error } = await sb.from('profiles').update({ [field]: value }).eq('id', State.user.id);
+    const { error } = await sb.from('op_profiles').update({ [field]: value }).eq('id', State.user.id);
     if (error) {
       if (statusEl) { statusEl.textContent = 'Failed to save.'; statusEl.style.color = 'var(--rose)'; }
     } else {
@@ -5004,7 +5004,7 @@ function renderEditProfile(main) {
       banner_color: newBannerColor,
     };
 
-    const { error } = await sb.from('profiles').update(updates).eq('id', State.user.id);
+    const { error } = await sb.from('op_profiles').update(updates).eq('id', State.user.id);
     if (error) {
       statusEl.textContent = 'Error: ' + error.message;
       btn.disabled = false; btn.textContent = 'Save Changes';
@@ -5030,16 +5030,16 @@ function openProfileQuickView(userId) {
   // Close on overlay click
   overlay.onclick = e => { if (e.target === overlay) { overlay.style.display = 'none'; } };
 
-  sb.from('profiles').select('*').eq('id', userId).single().then(async ({ data: p }) => {
+  sb.from('op_profiles').select('*').eq('id', userId).single().then(async ({ data: p }) => {
     if (!p) { card.innerHTML = `<div style="padding:24px;text-align:center;color:var(--rose)">Profile not found</div>`; return; }
 
     const isOwn = userId === State.user.id;
     const color = avatarColor(p.display_name || p.username || '?');
-    const { data: followRow } = !isOwn ? await sb.from('follows').select('id').eq('follower_id', State.user.id).eq('following_id', userId).single() : { data: null };
+    const { data: followRow } = !isOwn ? await sb.from('op_follows').select('id').eq('follower_id', State.user.id).eq('following_id', userId).single() : { data: null };
     const isFollowing = !!followRow;
 
     // Check if linked
-    const { data: linkRow } = !isOwn ? await sb.from('links').select('id').eq('requester_id', State.user.id).eq('target_id', userId).eq('status', 'accepted').single() : { data: null };
+    const { data: linkRow } = !isOwn ? await sb.from('op_links').select('id').eq('requester_id', State.user.id).eq('target_id', userId).eq('status', 'accepted').single() : { data: null };
     const isLinked = !!linkRow;
 
     card.innerHTML = `
@@ -5075,7 +5075,7 @@ function openProfileQuickView(userId) {
       followBtn.onclick = async () => {
         followBtn.disabled = true;
         if (fState) {
-          const { error } = await sb.from('follows').delete().eq('follower_id', State.user.id).eq('following_id', userId);
+          const { error } = await sb.from('op_follows').delete().eq('follower_id', State.user.id).eq('following_id', userId);
           if (!error) {
             await decrementFollowCounts(userId, State.user.id);
             fState = false; followBtn.textContent = 'Follow'; followBtn.className = 'profile-action-btn primary';
@@ -5085,10 +5085,10 @@ function openProfileQuickView(userId) {
             if (follEl) follEl.textContent = fmtNum(Math.max(0, (parseInt(follEl.textContent.replace(/[^\d]/g,'')) || 1) - 1));
           }
         } else {
-          const { error } = await sb.from('follows').insert({ follower_id: State.user.id, following_id: userId });
+          const { error } = await sb.from('op_follows').insert({ follower_id: State.user.id, following_id: userId });
           if (!error || error.code === '23505') {
             await incrementFollowCounts(userId, State.user.id);
-            await sb.from('notifications').insert({ user_id: userId, actor_id: State.user.id, type: 'follow' });
+            await sb.from('op_notifications').insert({ user_id: userId, actor_id: State.user.id, type: 'follow' });
             fState = true; followBtn.textContent = 'Unfollow'; followBtn.className = 'profile-action-btn secondary';
             toast('Followed!', 'user-check');
             const follEl = card.querySelector('strong');
@@ -5102,8 +5102,8 @@ function openProfileQuickView(userId) {
     const dmBtn = document.getElementById('pqv-dm');
     if (dmBtn) {
       dmBtn.onclick = async () => {
-        const { data: targetProfile } = await sb.from('profiles').select('dm_privacy').eq('id', userId).single();
-        const isFollowingTarget = !!(await sb.from('follows').select('id').eq('follower_id', State.user.id).eq('following_id', userId).single()).data;
+        const { data: targetProfile } = await sb.from('op_profiles').select('dm_privacy').eq('id', userId).single();
+        const isFollowingTarget = !!(await sb.from('op_follows').select('id').eq('follower_id', State.user.id).eq('following_id', userId).single()).data;
         const dmAllowed = await canDM(userId, targetProfile?.dm_privacy, isFollowingTarget);
         if (!dmAllowed) {
           toast(targetProfile?.dm_privacy === 'nobody' ? "This user doesn't accept DMs" : 'You must follow this user to DM them', 'lock');
@@ -5112,8 +5112,8 @@ function openProfileQuickView(userId) {
         overlay.style.display = 'none';
         const a = State.user.id < userId ? State.user.id : userId;
         const b = State.user.id < userId ? userId : State.user.id;
-        let { data: convo } = await sb.from('conversations').select('id').eq('participant_a', a).eq('participant_b', b).single();
-        if (!convo) { const { data: nc } = await sb.from('conversations').insert({ participant_a: a, participant_b: b }).select().single(); convo = nc; }
+        let { data: convo } = await sb.from('op_conversations').select('id').eq('participant_a', a).eq('participant_b', b).single();
+        if (!convo) { const { data: nc } = await sb.from('op_conversations').insert({ participant_a: a, participant_b: b }).select().single(); convo = nc; }
         navigateTo('messages');
         setTimeout(() => openDM(convo.id, userId, $('#dm-view')), 300);
       };
@@ -5123,9 +5123,9 @@ function openProfileQuickView(userId) {
     if (linkBtn) {
       linkBtn.onclick = async () => {
         if (isLinked) { toast('Already linked!', 'link'); return; }
-        const { error } = await sb.from('links').insert({ requester_id: State.user.id, target_id: userId, status: 'pending' });
+        const { error } = await sb.from('op_links').insert({ requester_id: State.user.id, target_id: userId, status: 'pending' });
         if (!error) {
-          await sb.from('notifications').insert({ user_id: userId, actor_id: State.user.id, type: 'link_request' });
+          await sb.from('op_notifications').insert({ user_id: userId, actor_id: State.user.id, type: 'link_request' });
           toast('Link request sent!', 'link');
           linkBtn.innerHTML = '<i class="fa-solid fa-clock"></i>';
         }
@@ -5229,7 +5229,7 @@ function renderSnippets(main) {
 
 async function loadSnippets(container) {
   const { data: snippets } = await sb
-    .from('snippets')
+    .from('op_snippets')
     .select('*, profiles!snippets_author_id_fkey(id, username, display_name, avatar_url)')
     .order('created_at', { ascending: false })
     .limit(20);
@@ -5445,13 +5445,13 @@ function buildSnippetCard(snippet) {
     e.stopPropagation();
     const uid = e.currentTarget.dataset.uid;
     if (!uid || uid === State.user.id) return;
-    const { error } = await sb.from('follows').insert({ follower_id: State.user.id, following_id: uid });
+    const { error } = await sb.from('op_follows').insert({ follower_id: State.user.id, following_id: uid });
     if (!error) {
       e.currentTarget.innerHTML = '<i class="fa-solid fa-check"></i>';
       e.currentTarget.style.background = 'var(--emerald,#34d399)';
       await sb.rpc('increment_followers', { target_user_id: uid });
       await sb.rpc('increment_following', { target_user_id: State.user.id });
-      await sb.from('notifications').insert({ user_id: uid, actor_id: State.user.id, type: 'follow' });
+      await sb.from('op_notifications').insert({ user_id: uid, actor_id: State.user.id, type: 'follow' });
       toast('Followed!', 'user-check');
     }
   });
@@ -5469,15 +5469,15 @@ function buildSnippetCard(snippet) {
     const cur = parseInt(heartCount.textContent) || 0;
     heartCount.textContent = fmtNum(_hearted ? cur + 1 : Math.max(0, cur - 1));
     if (_hearted) {
-      await sb.from('snippet_hearts').insert({ snippet_id: snippet.id, user_id: State.user.id });
+      await sb.from('op_snippet_hearts').insert({ snippet_id: snippet.id, user_id: State.user.id });
     } else {
-      const { data: existing } = await sb.from('snippet_hearts').select('id').eq('snippet_id', snippet.id).eq('user_id', State.user.id).single();
-      if (existing) await sb.from('snippet_hearts').delete().eq('id', existing.id);
+      const { data: existing } = await sb.from('op_snippet_hearts').select('id').eq('snippet_id', snippet.id).eq('user_id', State.user.id).single();
+      if (existing) await sb.from('op_snippet_hearts').delete().eq('id', existing.id);
     }
   });
 
   // Check if already hearted
-  sb.from('snippet_hearts').select('id').eq('snippet_id', snippet.id).eq('user_id', State.user.id).single().then(({ data }) => {
+  sb.from('op_snippet_hearts').select('id').eq('snippet_id', snippet.id).eq('user_id', State.user.id).single().then(({ data }) => {
     if (data) { _hearted = true; heartBtn.querySelector('i').style.color = 'var(--rose,#fb7185)'; }
   });
 
@@ -5485,13 +5485,13 @@ function buildSnippetCard(snippet) {
   card.querySelector('.snip-bookmark-btn').addEventListener('click', async e => {
     e.stopPropagation();
     const btn = e.currentTarget;
-    const { data: existing } = await sb.from('snippet_bookmarks').select('id').eq('snippet_id', snippet.id).eq('user_id', State.user.id).single();
+    const { data: existing } = await sb.from('op_snippet_bookmarks').select('id').eq('snippet_id', snippet.id).eq('user_id', State.user.id).single();
     if (existing) {
-      await sb.from('snippet_bookmarks').delete().eq('id', existing.id);
+      await sb.from('op_snippet_bookmarks').delete().eq('id', existing.id);
       btn.querySelector('i').style.color = '#fff';
       toast('Removed from bookmarks', 'bookmark');
     } else {
-      await sb.from('snippet_bookmarks').insert({ snippet_id: snippet.id, user_id: State.user.id });
+      await sb.from('op_snippet_bookmarks').insert({ snippet_id: snippet.id, user_id: State.user.id });
       btn.querySelector('i').style.color = 'var(--cyan,#ff2d6e)';
       toast('Snippet bookmarked!', 'bookmark');
     }
@@ -5593,7 +5593,7 @@ async function openSnippetComments(snippetId, card) {
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
-    const { error } = await sb.from('snippet_comments').insert({
+    const { error } = await sb.from('op_snippet_comments').insert({
       snippet_id: snippetId,
       author_id: State.user.id,
       content: text,
@@ -5607,7 +5607,7 @@ async function openSnippetComments(snippetId, card) {
         countEl.textContent = fmtNum(cur + 1);
       }
       // Increment in DB
-      await sb.from('snippets').update({ comments_count: (parseInt(card?.querySelector('.snip-comment-count')?.textContent)||0) }).eq('id', snippetId);
+      await sb.from('op_snippets').update({ comments_count: (parseInt(card?.querySelector('.snip-comment-count')?.textContent)||0) }).eq('id', snippetId);
     } else {
       toast('Failed to post comment', 'circle-exclamation');
     }
@@ -5619,7 +5619,7 @@ async function openSnippetComments(snippetId, card) {
 async function loadSnippetComments(snippetId, container) {
   if (!container) return;
   const { data: comments } = await sb
-    .from('snippet_comments')
+    .from('op_snippet_comments')
     .select('id, content, created_at, profiles!snippet_comments_author_id_fkey(id, username, display_name, avatar_url, is_github)')
     .eq('snippet_id', snippetId)
     .order('created_at', { ascending: true })
@@ -5755,7 +5755,7 @@ function openSnippetUploadModal() {
     }
 
     const videoUrl = sb.storage.from('snippets').getPublicUrl(path).data.publicUrl;
-    const { error: insertErr } = await sb.from('snippets').insert({
+    const { error: insertErr } = await sb.from('op_snippets').insert({
       author_id: State.user.id,
       video_url: videoUrl,
       caption,
@@ -5942,7 +5942,7 @@ function openProfileEditModal(profile) {
     }
 
     const tech_stack = document.getElementById('edit-tech').value.split(',').map(t => t.trim()).filter(Boolean);
-    const { error } = await sb.from('profiles').update({
+    const { error } = await sb.from('op_profiles').update({
       display_name: document.getElementById('edit-display-name').value.trim(),
       username: document.getElementById('edit-username').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'),
       bio: document.getElementById('edit-bio').value.trim(),
@@ -5958,7 +5958,7 @@ function openProfileEditModal(profile) {
       statusEl.style.color = 'var(--rose)'; statusEl.textContent = 'Failed: ' + error.message;
       btn.disabled = false; btn.textContent = 'Save Changes';
     } else {
-      const { data: updated } = await sb.from('profiles').select('*').eq('id', State.user.id).single();
+      const { data: updated } = await sb.from('op_profiles').select('*').eq('id', State.user.id).single();
       State.profile = updated;
       modal.classList.remove('open');
       toast('Profile updated!', 'pen');
@@ -6037,7 +6037,7 @@ function openReportModal(type, targetId) {
     const extra = $('#report-extra').value.trim();
     const btn = $('#submit-report-btn');
     btn.disabled = true; btn.textContent = 'Submitting…';
-    const { error } = await sb.from('reports').insert({
+    const { error } = await sb.from('op_reports').insert({
       reporter_id: State.user.id,
       target_type: type,
       target_id: targetId,
@@ -6056,7 +6056,7 @@ function openReportModal(type, targetId) {
 
 async function confirmBlockUser(userId) {
   if (!userId) return;
-  const { data: profile } = await sb.from('profiles').select('display_name, username').eq('id', userId).single();
+  const { data: profile } = await sb.from('op_profiles').select('display_name, username').eq('id', userId).single();
   const name = profile?.display_name || profile?.username || 'this user';
   const modal = $('#modal-overlay');
   $('#modal-title-text').textContent = 'Block User';
@@ -6072,7 +6072,7 @@ async function confirmBlockUser(userId) {
     </div>
   `;
   $('#confirm-block-btn').addEventListener('click', async () => {
-    const { error } = await sb.from('blocks').insert({ blocker_id: State.user.id, blocked_id: userId });
+    const { error } = await sb.from('op_blocks').insert({ blocker_id: State.user.id, blocked_id: userId });
     modal.classList.remove('open');
     if (error && error.code !== '23505') { toast('Error: ' + error.message, 'circle-exclamation'); return; }
     toast(`${name} blocked.`, 'ban');
@@ -6101,7 +6101,7 @@ async function registerPushNotifications() {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
     // Save subscription to Supabase
-    await sb.from('push_subscriptions').upsert({
+    await sb.from('op_push_subscriptions').upsert({
       user_id: State.user.id,
       endpoint: sub.endpoint,
       keys: JSON.stringify({ p256dh: btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))), auth: btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))) }),
@@ -6610,7 +6610,7 @@ async function handleGitHubProfileAutofill(session) {
     if (Object.keys(update).length === 0) return;
 
     // Apply to Supabase profile
-    await sb.from('profiles').update(update).eq('id', session.user.id);
+    await sb.from('op_profiles').update(update).eq('id', session.user.id);
 
     // Show banner with auto-filled info
     showGitHubAutofillBanner(ghUser, topRepos);
@@ -6858,7 +6858,7 @@ async function _hydratePollCounts(postId, userId) {
     const total   = Number(row.total) || 0;
 
     // Fetch poll options from post (needed for full render)
-    const { data: post } = await sb.from('posts').select('poll').eq('id', postId).single();
+    const { data: post } = await sb.from('op_posts').select('poll').eq('id', postId).single();
     if (!post?.poll?.options?.length) return;
 
     const container = document.querySelector(`.poll-container[data-poll-post="${postId}"]`);
@@ -6917,7 +6917,7 @@ document.addEventListener('click', async e => {
     const myVote = data.my_vote;
     const total  = Number(data.total) || 0;
 
-    const { data: post } = await sb.from('posts').select('poll').eq('id', postId).single();
+    const { data: post } = await sb.from('op_posts').select('poll').eq('id', postId).single();
     if (!post?.poll?.options?.length) return;
 
     const fresh = document.querySelector(`.poll-container[data-poll-post="${postId}"]`);
@@ -6948,7 +6948,7 @@ async function refreshAllPollsForUser(userId) {
       p_post_ids: postIds,
       p_user_id: userId,
     });
-    const { data: posts } = await sb.from('posts').select('id, poll').in('id', postIds);
+    const { data: posts } = await sb.from('op_posts').select('id, poll').in('id', postIds);
     if (!posts || !states) return;
 
     const stateMap = Object.fromEntries((states || []).map(s => [s.post_id, s]));
@@ -7025,7 +7025,7 @@ async function buildWeeklyDigestWidget() {
   let topPosts = [], trendingTags = [], newMembers = [];
 
   try {
-    const { data: posts } = await sb.from('posts')
+    const { data: posts } = await sb.from('op_posts')
       .select('id, content, tags, likes_count, comments_count, created_at, author_id')
       .gte('created_at', since)
       .order('likes_count', { ascending: false })
@@ -7033,7 +7033,7 @@ async function buildWeeklyDigestWidget() {
     topPosts = posts || [];
 
     // Trending tags (aggregate from posts)
-    const { data: allPosts } = await sb.from('posts')
+    const { data: allPosts } = await sb.from('op_posts')
       .select('tags')
       .gte('created_at', since)
       .not('tags', 'is', null)
@@ -7048,7 +7048,7 @@ async function buildWeeklyDigestWidget() {
       .map(([t]) => t);
 
     // New members this week
-    const { data: members } = await sb.from('profiles')
+    const { data: members } = await sb.from('op_profiles')
       .select('id, username, display_name, avatar_url')
       .gte('created_at', since)
       .order('created_at', { ascending: false })
@@ -7186,7 +7186,7 @@ async function recordPostView(postId) {
   try {
     await sb.rpc('increment_post_views', { post_id: postId });
   } catch(_) {
-    await sb.from('posts')
+    await sb.from('op_posts')
       .update({ views_count: sb.raw('views_count + 1') })
       .eq('id', postId);
   }
@@ -7249,7 +7249,7 @@ document.querySelectorAll('.post-card').forEach(c => injectReadMetaIntoCard(c));
    ══════════════════════════════════════════════════════════════ */
 
 async function getPinnedPosts(userId) {
-  const { data } = await sb.from('profiles')
+  const { data } = await sb.from('op_profiles')
     .select('pinned_posts')
     .eq('id', userId)
     .single();
@@ -7257,7 +7257,7 @@ async function getPinnedPosts(userId) {
 }
 
 async function setPinnedPosts(userId, pinnedIds) {
-  await sb.from('profiles')
+  await sb.from('op_profiles')
     .update({ pinned_posts: pinnedIds })
     .eq('id', userId);
 }
@@ -7295,7 +7295,7 @@ async function renderPinnedSection(profileUserId, containerEl) {
   const existing = document.getElementById('pinned-posts-section');
   if (existing) existing.remove();
 
-  const { data: posts } = await sb.from('posts')
+  const { data: posts } = await sb.from('op_posts')
     .select('*, profiles(username, display_name, avatar_url)')
     .in('id', pinnedIds)
     .order('created_at', { ascending: false });
@@ -7772,12 +7772,12 @@ function _buildRepoCard(r, isPinned, isOwn, profile) {
       const repoName = pinBtn.dataset.repo;
       const wasPinned = pinBtn.dataset.pinned === 'true';
       pinBtn.disabled = true;
-      const { data: p } = await sb.from('profiles').select('pinned_repos').eq('id', window.State.user.id).single();
+      const { data: p } = await sb.from('op_profiles').select('pinned_repos').eq('id', window.State.user.id).single();
       let pinned = p?.pinned_repos || [];
       if (wasPinned) pinned = pinned.filter(n => n !== repoName);
       else if (pinned.length < 6) pinned = [...pinned, repoName];
       else { window.toast('Max 6 pinned repos', 'circle-exclamation'); pinBtn.disabled = false; return; }
-      await sb.from('profiles').update({ pinned_repos: pinned }).eq('id', window.State.user.id);
+      await sb.from('op_profiles').update({ pinned_repos: pinned }).eq('id', window.State.user.id);
       window.toast(wasPinned ? 'Unpinned' : 'Pinned to profile!', 'thumbtack');
       // Refresh the card
       const parentCard = pinBtn.closest('.gh-repo-card');
@@ -7823,7 +7823,7 @@ function openShareRepoModal(repoName, repoUrl, repoDesc) {
     if (!text) return;
     const btn = document.getElementById('share-repo-submit');
     btn.disabled = true; btn.textContent = 'Posting…';
-    const { error } = await sb.from('posts').insert({
+    const { error } = await sb.from('op_posts').insert({
       author_id:  window.State.user.id,
       content:    text,
       github_repo: JSON.stringify({ name: repoName, url: repoUrl, desc: repoDesc }),
@@ -8093,7 +8093,7 @@ async function syncGitHubToProfile(token, userId) {
     if (ghUser.blog    && !window.State?.profile?.website)       update.website = ghUser.blog;
     if (ghUser.name    && !window.State?.profile?.display_name)  update.display_name = ghUser.name;
 
-    await sb.from('profiles').update(update).eq('id', userId);
+    await sb.from('op_profiles').update(update).eq('id', userId);
     if (window.State?.profile) Object.assign(window.State.profile, update);
     GHCache.user     = ghUser;
     GHCache.repos    = repoList;
@@ -8122,7 +8122,7 @@ async function syncGitHubToProfile(token, userId) {
 
         // After original renders, upgrade the tabs + inject GitHub sections
         const targetId = userId || window.State?.user?.id;
-        const { data: profile } = await sb.from('profiles').select('*').eq('id', targetId).single();
+        const { data: profile } = await sb.from('op_profiles').select('*').eq('id', targetId).single();
         if (!profile) return;
 
         // Replace tab list with extended version
@@ -8627,13 +8627,13 @@ window.buildPostCard = function(post, profile, isLiked = false, isBookmarked = f
       const prev = voteState;
       if (voteState === 'up') {
         voteState = 'none'; voteScore--;
-        await window.sb?.from('post_likes').delete().eq('post_id', post.id).eq('user_id', window.State?.user?.id);
+        await window.sb?.from('op_post_likes').delete().eq('post_id', post.id).eq('user_id', window.State?.user?.id);
       } else {
         if (voteState === 'down') voteScore++; // undo downvote
         voteState = 'up'; voteScore++;
-        await window.sb?.from('post_likes').upsert({ post_id: post.id, user_id: window.State?.user?.id, vote: 1 }, { onConflict: 'post_id,user_id' });
+        await window.sb?.from('op_post_likes').upsert({ post_id: post.id, user_id: window.State?.user?.id, vote: 1 }, { onConflict: 'post_id,user_id' });
         if (post.author_id !== window.State?.user?.id) {
-          window.sb?.from('notifications').insert({ user_id: post.author_id, actor_id: window.State?.user?.id, type: 'like', post_id: post.id });
+          window.sb?.from('op_notifications').insert({ user_id: post.author_id, actor_id: window.State?.user?.id, type: 'like', post_id: post.id });
         }
       }
       upBtn.style.transform = 'scale(1.35)';
@@ -8645,11 +8645,11 @@ window.buildPostCard = function(post, profile, isLiked = false, isBookmarked = f
       e.stopPropagation();
       if (voteState === 'down') {
         voteState = 'none'; voteScore++;
-        await window.sb?.from('post_likes').delete().eq('post_id', post.id).eq('user_id', window.State?.user?.id);
+        await window.sb?.from('op_post_likes').delete().eq('post_id', post.id).eq('user_id', window.State?.user?.id);
       } else {
         if (voteState === 'up') voteScore--; // undo upvote
         voteState = 'down'; voteScore--;
-        await window.sb?.from('post_likes').upsert({ post_id: post.id, user_id: window.State?.user?.id, vote: -1 }, { onConflict: 'post_id,user_id' });
+        await window.sb?.from('op_post_likes').upsert({ post_id: post.id, user_id: window.State?.user?.id, vote: -1 }, { onConflict: 'post_id,user_id' });
       }
       downBtn.style.transform = 'scale(1.3)';
       setTimeout(() => downBtn.style.transform = '', 200);
@@ -9532,7 +9532,7 @@ function openOwnPostMenu(anchor, post, profile, card) {
   menu.querySelector('#ctx-delete').onclick = async () => {
     closeMenu();
     if (!confirm('Delete this post? This cannot be undone.')) return;
-    const { error } = await sb.from('posts').delete().eq('id', post.id);
+    const { error } = await sb.from('op_posts').delete().eq('id', post.id);
     if (error) {
       typeof toast === 'function' && toast('Failed to delete: ' + error.message, 'circle-exclamation');
     } else {
@@ -9579,7 +9579,7 @@ function openInlineEditor(post, card) {
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
-    const { error } = await window.sb?.from('posts')
+    const { error } = await window.sb?.from('op_posts')
       .update({ content: newText })
       .eq('id', post.id)
       .eq('author_id', window.State?.user?.id);
