@@ -118,6 +118,7 @@ const State = {
   currentChannel: null,
   currentDM: null,
   feedTab: 'for-you',
+  isGuest: false,
   posts: [],
   notifications: [],
   onlineUsers: new Set(),
@@ -261,8 +262,6 @@ const BADGE_DEFS = [
   { id: 'popular',        icon: '🌟', label: 'Rising Star',      tier: 'gold',    desc: 'Reached 50+ followers',                              check: p => (p.followers_count || 0) >= 50 },
   { id: 'influencer',     icon: '👑', label: 'Influencer',       tier: 'gold',    desc: 'Reached 500+ followers',                             check: p => (p.followers_count || 0) >= 500 },
   { id: 'connector',      icon: '🔗', label: 'Connector',        tier: 'emerald', desc: 'Following 25+ developers',                           check: p => (p.following_count || 0) >= 25 },
-  { id: 'stacker',        icon: '🛠️', label: 'Stacker',          tier: 'cyan',    desc: 'Added 5+ technologies to your stack',                check: p => (p.tech_stack || []).length >= 5 },
-  { id: 'github_native',  icon: '🐙', label: 'GitHub Native',    tier: 'violet',  desc: 'Connected your GitHub account',                      check: p => !!p.is_github },
   { id: 'early_adopter',  icon: '🌱', label: 'Early Adopter',    tier: 'emerald', desc: 'Joined Devit in its early days',                     check: p => p.created_at && new Date(p.created_at) < new Date('2025-12-31') },
 ];
 
@@ -550,6 +549,27 @@ async function initAuth() {
     }
     // On success the browser navigates away
   }); } catch (e) { console.error('[Planebook] Discord btn bind error:', e); }
+  // ── Guest / Browse mode ───────────────────────────────────────
+  try {
+    const guestBtn = document.getElementById('guest-browse-btn');
+    guestBtn?.addEventListener('click', () => {
+      State.isGuest = true;
+      document.body.classList.add('guest-mode');
+      State.user    = null;
+      State.profile = { username: 'guest', display_name: 'Guest', id: null };
+      screen.style.opacity    = '0';
+      screen.style.transform  = 'scale(1.02)';
+      screen.style.transition = '0.4s ease';
+      setTimeout(async () => {
+        screen.style.display = 'none'; screen.style.visibility = 'hidden'; screen.style.pointerEvents = 'none';
+        app.classList.add('visible');
+        await buildApp();
+        toast('Browsing as guest — sign in to post & interact ✈️', 'eye');
+      }, 400);
+    });
+  } catch(e) { console.error('[Planebook] Guest btn bind error:', e); }
+
+
 
   // ── onAuthStateChange — single source of truth ───────────────
   //
@@ -610,6 +630,8 @@ async function initAuth() {
         appBuilt      = false;
         State.user    = null;
         State.profile = null;
+        State.isGuest = false;
+        document.body.classList.remove('guest-mode');
 
         // Return to auth screen
         screen.style.display   = 'flex';
@@ -665,7 +687,7 @@ async function initAuth() {
         screen.style.display = 'none'; screen.style.visibility = 'hidden'; screen.style.pointerEvents = 'none';
         app.classList.add('visible');
         await buildApp();
-        _subscribeToOwnFollowCount(); // realtime follower count sync
+        if (!State.isGuest) _subscribeToOwnFollowCount(); // realtime follower count sync
         document.dispatchEvent(new CustomEvent('devit:signed-in', { detail: { user: State.user } }));
         // Re-render any polls that loaded before auth resolved (they showed as unvoted)
         refreshAllPollsForUser(State.user.id);
@@ -1375,6 +1397,9 @@ function initBottomNav() {
       const btn = e.target.closest('.bnav-btn');
       if (!btn) return;
       if (btn.id === 'bnav-post-btn') { openNewPostModal(); return; }
+      const navTarget = btn.dataset.nav;
+      if (navTarget === 'messages' && guestGuard('send messages')) return;
+      if ((navTarget === 'profile' || navTarget === 'bookmarks' || navTarget === 'notifications') && guestGuard('access that')) return;
       const nav = btn.dataset.nav;
       if (nav) navigateTo(nav);
     });
@@ -1639,25 +1664,26 @@ function toggleSidebar() {
 
 function buildSidebar() {
   const sb_el = $('#sidebar');
-  const links = [
-    { id: 'feed',          icon: '<i class="fa-solid fa-house"></i>',        label: 'Activity' },
-    { id: 'explore',       icon: '<i class="fa-solid fa-compass"></i>',       label: 'Discover' },
-    { id: 'notifications', icon: '<i class="fa-solid fa-bell"></i>',          label: 'Alerts', badge: State.unreadNotifs },
-    { id: 'messages',      icon: '<i class="fa-solid fa-message"></i>',       label: 'DMs', badge: State.unreadMessages },
-    { id: 'profile',       icon: '<i class="fa-solid fa-user"></i>',          label: 'Profile' },
-    { id: 'bookmarks',     icon: '<i class="fa-solid fa-bookmark"></i>',      label: 'Saved' },
-    { id: 'leaderboard',   icon: '<i class="fa-solid fa-trophy"></i>',        label: 'Leaderboard' },
-    { id: 'settings',      icon: '<i class="fa-solid fa-gear"></i>',          label: 'Settings' },
+  const allLinks = [
+    { id: 'feed',          icon: '<i class="fa-solid fa-house"></i>',        label: 'Activity',     guestOk: true },
+    { id: 'explore',       icon: '<i class="fa-solid fa-compass"></i>',       label: 'Discover',     guestOk: true },
+    { id: 'notifications', icon: '<i class="fa-solid fa-bell"></i>',          label: 'Alerts',       guestOk: false, badge: State.unreadNotifs },
+    { id: 'messages',      icon: '<i class="fa-solid fa-message"></i>',       label: 'DMs',          guestOk: false, badge: State.unreadMessages },
+    { id: 'profile',       icon: '<i class="fa-solid fa-user"></i>',          label: 'Profile',      guestOk: false },
+    { id: 'bookmarks',     icon: '<i class="fa-solid fa-bookmark"></i>',      label: 'Saved',        guestOk: false },
+    { id: 'leaderboard',   icon: '<i class="fa-solid fa-trophy"></i>',        label: 'Leaderboard',  guestOk: true },
+    { id: 'settings',      icon: '<i class="fa-solid fa-gear"></i>',          label: 'Settings',     guestOk: false },
   ];
+  const links = State.isGuest ? allLinks.filter(l => l.guestOk) : allLinks;
 
   let html = `<button class="sidebar-ham-btn" aria-label="Toggle sidebar" id="sidebar-ham-btn">
     <i class="fa-solid fa-bars"></i>
   </button>`;
-  html += `<button class="sidebar-new-post-btn" id="sidebar-new-post-btn" aria-label="New Post">
+  if (!State.isGuest) html += `<button class="sidebar-new-post-btn" id="sidebar-new-post-btn" aria-label="New Post">
     <i class="fa-solid fa-plus"></i>
     <span>New Post</span>
   </button>`;
-  html += `<div class="sidebar-section-label">// navigate</div>`;
+  html += `<div class="sidebar-section-label">navigate</div>`;
   links.forEach(l => {
     html += `<div class="sidebar-link${l.id === State.currentView ? ' active' : ''}" data-nav="${l.id}">
       <span class="icon">${l.icon}</span>
@@ -1666,6 +1692,13 @@ function buildSidebar() {
     </div>`;
   });
 
+  if (State.isGuest) {
+    html += `<div style="margin-top:16px;padding:0 12px">
+      <button onclick="showGuestPrompt('sign in')" style="width:100%;padding:11px;border-radius:12px;background:rgba(255,45,110,0.1);border:1px solid rgba(255,45,110,0.3);color:var(--cyan);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-body)">
+        <i class="fa-brands fa-discord"></i> Sign in
+      </button>
+    </div>`;
+  }
   sb_el.innerHTML = html;
 
   // Re-attach hamburger listener after innerHTML reset
@@ -1677,11 +1710,17 @@ function buildSidebar() {
   if (sidebarPostBtn) sidebarPostBtn.addEventListener('click', openNewPostModal);
 
   $$('.sidebar-link[data-nav]', sb_el).forEach(link => {
-    link.addEventListener('click', () => navigateTo(link.dataset.nav));
+    link.addEventListener('click', () => {
+      if (link.dataset.nav) {
+          if (link.dataset.nav === 'messages' && guestGuard('send messages')) return;
+          navigateTo(link.dataset.nav);
+        }
+    });
   });
 }
 
 async function loadSidebarCommunities() {
+  if (State.isGuest) return;
   const { data } = await sb
     .from('op_community_members')
     .select('community_id, communities(id, name, icon, color)')
@@ -1939,39 +1978,86 @@ function initTopbarSwipe() {}
 function initSwipeNavigation() {}
 
 /* ── Feed ───────────────────────────────────────────────────── */
+
+
+/* ── Guest mode styles ────────────────────────────────────── */
+(function injectGuestStyles() {
+  const s = document.createElement('style');
+  s.textContent = `
+    body.guest-mode #bnav-post-btn { opacity: 0.4; pointer-events: none; }
+    body.guest-mode .composer-inner { display: none !important; }
+  `;
+  document.head.appendChild(s);
+})();
+
+/* ── Guest Mode Guard ───────────────────────────────────────── */
+function guestGuard(action) {
+  if (!State.isGuest) return false;
+  showGuestPrompt(action);
+  return true;
+}
+
+function showGuestPrompt(action = 'do that') {
+  const modal = document.getElementById('modal-overlay');
+  const body  = document.getElementById('modal-body');
+  const title = document.getElementById('modal-title-text');
+  if (!modal || !body) return;
+  title.textContent = 'Sign in to continue';
+  modal.classList.add('open');
+  body.innerHTML = `
+    <div style="padding:32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px">
+      <div style="width:60px;height:60px;border-radius:50%;background:rgba(255,45,110,0.1);border:2px solid rgba(255,45,110,0.3);display:flex;align-items:center;justify-content:center;font-size:24px">✈️</div>
+      <div>
+        <div style="font-size:17px;font-weight:800;margin-bottom:6px">You need an account to ${escapeHtml(action)}</div>
+        <div style="font-size:13px;color:var(--text-muted)">Join Planebook — it's free. Sign in with Discord to post, like, and connect with fellow aviators.</div>
+      </div>
+      <button class="auth-btn-discord" id="guest-prompt-discord-btn" style="width:100%;max-width:280px">
+        <svg class="discord-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" fill="#fff"/>
+        </svg>
+        <span>Sign in with Discord</span>
+      </button>
+      <button style="font-size:12px;color:var(--text-muted);background:none;border:none;cursor:pointer" onclick="document.getElementById('modal-overlay').classList.remove('open')">Continue browsing as guest</button>
+    </div>`;
+  document.getElementById('guest-prompt-discord-btn')?.addEventListener('click', async () => {
+    modal.classList.remove('open');
+    // Bring back auth screen
+    State.isGuest = false;
+    const screen = document.getElementById('auth-screen');
+    const app    = document.getElementById('app');
+    if (screen && app) {
+      screen.style.display = 'flex'; screen.style.visibility = ''; screen.style.pointerEvents = '';
+      screen.style.opacity = '1'; screen.style.transform = '';
+      app.classList.remove('visible');
+    }
+    // Trigger Discord OAuth
+    await sb.auth.signInWithOAuth({
+      provider: 'discord',
+      options: { redirectTo: window.DEVIT_CONFIG?.SITE_URL || window.location.origin }
+    });
+  });
+}
+window.guestGuard = guestGuard;
+
 function renderFeed(main) {
   // Build unique stacks from user's own stack for filtering
   const userStack = State.profile?.tech_stack || [];
 
   main.innerHTML = `
     <div class="view-tabs" role="tablist" aria-label="Feed tabs">
-      <div class="view-tab ${State.feedTab === 'for-you' ? 'active' : ''}" data-tab="for-you" role="tab" aria-selected="${State.feedTab === 'for-you'}" tabindex="0">main</div>
-      <div class="view-tab ${State.feedTab === 'following' ? 'active' : ''}" data-tab="following" role="tab" aria-selected="${State.feedTab === 'following'}" tabindex="-1">starred</div>
-      <div class="view-tab ${State.feedTab === 'activity' ? 'active' : ''}" data-tab="activity" role="tab" aria-selected="${State.feedTab === 'activity'}" tabindex="-1"><i class="fa-brands fa-github" style="font-size:11px;margin-right:4px"></i>dev activity</div>
+      <div class="view-tab ${State.feedTab === 'for-you' ? 'active' : ''}" data-tab="for-you" role="tab" aria-selected="${State.feedTab === 'for-you'}" tabindex="0">main feed</div>
+      <div class="view-tab ${State.feedTab === 'following' ? 'active' : ''}" data-tab="following" role="tab" aria-selected="${State.feedTab === 'following'}" tabindex="-1">following</div>
     </div>
-    ${userStack.length > 0 ? `
-    <div class="stack-filter-bar" id="stack-filter-bar">
-      <span class="stack-filter-label"><i class="fa-solid fa-layer-group"></i> Stack</span>
-      <div class="stack-filter-chips" id="stack-filter-chips">
-        <button class="stack-chip active" data-stack="">All</button>
-        ${userStack.slice(0, 8).map(s => `<button class="stack-chip" data-stack="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join('')}
-      </div>
+    ${State.isGuest ? `<div style="margin:8px 12px 0;padding:10px 14px;background:rgba(255,45,110,0.07);border:1px solid rgba(255,45,110,0.2);border-radius:12px;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-secondary)">
+      <i class="fa-solid fa-eye" style="color:var(--cyan);font-size:14px;flex-shrink:0"></i>
+      <span>You're browsing as a guest. <button onclick="showGuestPrompt('sign in')" style="background:none;border:none;cursor:pointer;color:var(--cyan);font-weight:700;font-size:12px;padding:0">Sign in with Discord</button> to post & interact.</span>
     </div>` : ''}
-    <div id="feed" role="feed" aria-label="Developer posts" aria-busy="true"><div style="padding:32px;text-align:center;color:var(--text-muted)">Loading posts…</div></div>
+    <div id="feed" role="feed" aria-label="Aviation posts" aria-busy="true"><div style="padding:32px;text-align:center;color:var(--text-muted)">Loading posts…</div></div>
   `;
 
   // Active stack filter state
   let activeStack = '';
 
-  const stackChips = main.querySelectorAll('.stack-chip');
-  stackChips.forEach(chip => {
-    chip.addEventListener('click', () => {
-      stackChips.forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      activeStack = chip.dataset.stack;
-      if (State.feedTab !== 'activity') loadPosts($('#feed'), activeStack);
-    });
-  });
 
   $$('.view-tab[data-tab]', main).forEach(tab => {
     tab.addEventListener('click', () => {
@@ -1980,23 +2066,15 @@ function renderFeed(main) {
       tab.classList.add('active');
       tab.setAttribute('aria-selected','true');
       tab.setAttribute('tabindex','0');
-      if (State.feedTab === 'activity') {
-        renderDevActivityFeed($('#feed'));
-      } else {
-        loadPosts($('#feed'), activeStack);
-      }
+      loadPosts($('#feed'), activeStack);
     });
     tab.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tab.click(); }
     });
   });
 
-  if (State.feedTab === 'activity') {
-    renderDevActivityFeed($('#feed'));
-  } else {
-    loadPosts($('#feed'), activeStack);
-    subscribeToNewPosts($('#feed'));
-  }
+  loadPosts($('#feed'), activeStack);
+  subscribeToNewPosts($('#feed'));
 }
 
 async function loadPosts(container, stackFilter = '') {
@@ -2016,7 +2094,7 @@ async function loadPosts(container, stackFilter = '') {
     const { data: following } = await sb.from('op_follows').select('following_id').eq('follower_id', State.user.id);
     const ids = (following || []).map(f => f.following_id);
     if (!ids.length) {
-      container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">Follow some people to see their posts here 🌱</div>`;
+      container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">Follow some aviators to see their posts here ✈️</div>`;
       return;
     }
     query = query.in('author_id', ids);
@@ -2048,8 +2126,8 @@ async function loadPosts(container, stackFilter = '') {
   container.setAttribute('aria-busy', 'false');
   if (!filteredPosts.length) {
     const msg = stackFilter
-      ? `<div style="padding:40px;text-align:center;color:var(--text-muted)">No posts matching <strong>${escapeHtml(stackFilter)}</strong> stack yet 🛠️</div>`
-      : `<div style="padding:40px;text-align:center;color:var(--text-muted)">No posts yet — be the first! 🚀</div>`;
+      ? `<div style="padding:40px;text-align:center;color:var(--text-muted)">No posts yet 🛫</div>`
+      : `<div style="padding:40px;text-align:center;color:var(--text-muted)">No posts yet — be the first to share! ✈️</div>`;
     container.innerHTML = msg;
     return;
   }
@@ -2088,7 +2166,7 @@ function subscribeToNewPosts(container) {
 /* ── Dev Activity Feed (GitHub stars, follows, contributions) ── */
 async function renderDevActivityFeed(container) {
   container.setAttribute('aria-busy', 'true');
-  container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-muted)">Loading dev activity…</div>`;
+  container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-muted)">Loading activity…</div>`;
 
   const profile = State.profile;
   const ghUsername = profile?.github_username || (profile?.is_github ? profile?.username : null);
@@ -2211,14 +2289,10 @@ function buildComposer(container) {
     <div class="composer-inner">
       <div class="composer-row">
         <div class="composer-avatar">${avatarHtml(profile, 38)}</div>
-        <textarea class="composer-textarea" id="post-textarea" placeholder="// what are you building today?" rows="2"></textarea>
+        <textarea class="composer-textarea" id="post-textarea" placeholder="What did you spot today? ✈️" rows="2"></textarea>
       </div>
-      <pre class="composer-code-block" id="composer-code" spellcheck="false" contenteditable="false"></pre>
       <div id="composer-attach-preview" style="display:none;padding:0 0 8px 0"></div>
       <div class="composer-toolbar">
-        <button class="composer-tool" id="add-code-btn" title="Add code block">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-        </button>
         <button class="composer-tool" title="Add image" id="composer-img-btn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         </button>
@@ -2237,21 +2311,15 @@ function buildComposer(container) {
 
   // Inject poll button once composer is ready (avoids MutationObserver on body)
   setTimeout(() => { if (typeof injectPollButtonIntoComposer === 'function') injectPollButtonIntoComposer(); }, 0);
-  // Inject collab button once composer is ready
-  setTimeout(() => { if (typeof injectCollabButtonIntoComposer === 'function') injectCollabButtonIntoComposer(); }, 50);
 
   const textarea    = $('#post-textarea');
   const charCount   = $('#char-count');
   const submitBtn   = $('#post-submit-btn');
-  const codeBlock   = $('#composer-code');
-  const addCodeBtn  = $('#add-code-btn');
   const imgBtn      = $('#composer-img-btn');
   const imgInput    = $('#composer-img-input');
   const fileBtn     = $('#composer-file-btn');
   const fileInput   = $('#composer-file-input');
   const preview     = $('#composer-attach-preview');
-  let hasCode = false;
-  let codeLang = 'js';
   let selectedImageFile = null;
   let selectedAttachFile = null;
 
@@ -2565,15 +2633,7 @@ function buildComposer(container) {
     if (imageUrl)  postData.image_url  = imageUrl;
     if (fileUrl)   postData.file_url   = fileUrl;
     if (fileName)  postData.file_name  = fileName;
-    if (hasCode && codeBlock.textContent.trim() !== '// Your code here') {
-      postData.code_block = codeBlock.textContent.trim();
-      postData.code_lang  = codeLang;
-    }
 
-    // Attach collab tags if active
-    if (window._pendingCollabTags?.length) {
-      postData.collab_tags = window._pendingCollabTags;
-    }
 
     // Attach poll if active
     if (typeof PollState !== 'undefined' && PollState.active) {
@@ -2593,24 +2653,22 @@ function buildComposer(container) {
     if (error) {
       if (!error.blocked) toast('Failed to post: ' + error.message, 'circle-exclamation');
     } else {
-      const feed = $('#feed');
-      if (feed) loadPosts(feed);
+      // Close modal first, then reload the feed so the new post is visible
+      document.getElementById('modal-overlay')?.classList.remove('open');
+      setTimeout(() => {
+        const feed = document.getElementById('feed');
+        if (feed) loadPosts(feed);
+      }, 100);
       textarea.value = '';
       charCount.textContent = '280';
-      codeBlock.textContent = '';
-      codeBlock.classList.remove('visible');
-      hasCode = false;
-      addCodeBtn.style.color = '';
+
       selectedImageFile = null;
       selectedAttachFile = null;
       imgInput.value = '';
       fileInput.value = '';
       preview.style.display = 'none';
       preview.innerHTML = '';
-      // Reset collab state
-      window._pendingCollabTags = null;
-      const collabBtn = document.getElementById('collab-toggle-btn');
-      if (collabBtn) { collabBtn.style.color = ''; collabBtn.style.background = ''; collabBtn.title = 'Looking for collaborators?'; }
+
       toast('Posted!', 'paper-plane');
 
       // Check for new milestone badges after posting
@@ -2683,15 +2741,7 @@ function buildPostCard(post, profile, isLiked = false, isBookmarked = false) {
         <i class="fa-solid fa-download" style="font-size:13px;color:var(--text-muted);flex-shrink:0"></i>
       </div>`;
   }
-  if (post.code_block) {
-    contentHtml += `<pre class="post-code"><span class="post-code-lang">${post.code_lang || ''}</span>${escapeHtml(post.code_block)}</pre>`;
-    contentHtml += `<div class="ai-summary-wrap" id="ai-summary-${post.id}">
-      <button class="ai-summary-btn" data-pid="${post.id}" data-code="${encodeURIComponent(post.code_block)}" data-lang="${escapeHtml(post.code_lang||'')}">
-        <i class="fa-solid fa-wand-magic-sparkles"></i> AI Summary
-      </button>
-      <div class="ai-summary-result" style="display:none"></div>
-    </div>`;
-  }
+
   // Render poll if present
   if (post.poll && post.poll.options?.length) {
     const currentUserId = State.user?.id || '';
@@ -2704,7 +2754,7 @@ function buildPostCard(post, profile, isLiked = false, isBookmarked = false) {
       <div class="post-meta">
         <div class="post-author">
           <span class="pfp-clickable" data-uid="${profile?.id || ''}" style="cursor:pointer">${profile?.display_name || profile?.username || 'Unknown'}</span>
-          ${profile?.is_github ? `<span style="display:inline-flex;align-items:center;gap:3px;background:#24292e;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:999px;line-height:1.4;"><i class="fa-brands fa-github" style="font-size:10px;"></i></span>` : ''}
+          
           <span class="post-author-handle">@${profile?.username || '?'}</span>
         </div>
         <div class="post-time">${timeAgo(post.created_at)}</div>
@@ -2735,6 +2785,7 @@ function buildPostCard(post, profile, isLiked = false, isBookmarked = false) {
   const likeBtn = $('.like-btn', card);
   likeBtn.addEventListener('click', async e => {
     e.stopPropagation();
+    if (guestGuard('like posts')) return;
     likedState = !likedState;
     const countEl = likeBtn.querySelector('.like-count');
     const svg = likeBtn.querySelector('svg');
@@ -2771,6 +2822,7 @@ function buildPostCard(post, profile, isLiked = false, isBookmarked = false) {
   const bookmarkBtn = $('.bookmark-btn', card);
   bookmarkBtn.addEventListener('click', async e => {
     e.stopPropagation();
+    if (guestGuard('save bookmarks')) return;
     bookmarkedState = !bookmarkedState;
     bookmarkBtn.classList.toggle('bookmarked', bookmarkedState);
     bookmarkBtn.querySelector('svg').setAttribute('fill', bookmarkedState ? 'currentColor' : 'none');
@@ -2784,7 +2836,7 @@ function buildPostCard(post, profile, isLiked = false, isBookmarked = false) {
   });
 
   // Comment
-  $('.comment-btn', card).addEventListener('click', e => { e.stopPropagation(); openPostThread(post, profile); });
+  $('.comment-btn', card).addEventListener('click', e => { e.stopPropagation(); if (guestGuard('comment')) return; openPostThread(post, profile); });
 
   // Hashtag clicks → tag feed
   card.querySelectorAll('.hashtag[data-tag]').forEach(span => {
@@ -3009,6 +3061,7 @@ async function loadComments(postId) {
 
 /* ── New Post Modal ─────────────────────────────────────────── */
 function openNewPostModal() {
+  if (guestGuard('post')) return;
   const modal = $('#modal-overlay');
   const body  = $('#modal-body');
   $('#modal-title-text').textContent = 'New Post';
@@ -3026,15 +3079,13 @@ async function renderExplore(main) {
   const EXPLORE_TABS = [
     { id: 'discover',  label: 'Discover',  icon: 'fa-solid fa-compass' },
     { id: 'trending',  label: 'Trending',  icon: 'fa-solid fa-fire' },
-    { id: 'collab',    label: 'Collab Board', icon: 'fa-solid fa-people-group' },
-    { id: 'stacks',    label: 'By Stack',  icon: 'fa-solid fa-layer-group' },
   ];
   let activeExploreTab = 'discover';
 
   main.innerHTML = `
     <div class="explore-header">
       <h2>Explore</h2>
-      <p>Discover developers building the future</p>
+      <p>Discover fellow aviators from around the world</p>
     </div>
     <div class="view-tabs" role="tablist" style="padding:0 4px">
       ${EXPLORE_TABS.map(t => `<div class="view-tab ${t.id === activeExploreTab ? 'active' : ''}" data-etab="${t.id}" role="tab"><i class="${t.icon}" style="margin-right:6px;font-size:11px"></i>${t.label}</div>`).join('')}
@@ -3049,7 +3100,7 @@ async function renderExplore(main) {
 
     if (tabId === 'discover') {
       const [peopleRes, communityRes] = await Promise.all([
-        sb.from('op_profiles').select('id, username, display_name, avatar_url, bio, followers_count, tech_stack, is_github').neq('id', State.user.id).order('followers_count', { ascending: false }).limit(8),
+        sb.from('op_profiles').select('id, username, display_name, avatar_url, bio, followers_count').neq('id', State.user.id).order('followers_count', { ascending: false }).limit(8),
         sb.from('op_communities').select('id, name, icon, color, description, members_count').order('members_count', { ascending: false }).limit(6),
       ]);
       const people = peopleRes.data || [];
@@ -3057,7 +3108,7 @@ async function renderExplore(main) {
 
       content.innerHTML = `
         <div style="padding:16px 16px 4px;font-family:var(--font-display);font-size:14px;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:8px">
-          <i class="fa-solid fa-users" style="color:var(--cyan)"></i> Developers to follow
+          <i class="fa-solid fa-users" style="color:var(--cyan)"></i> Aviators to follow
         </div>
         <div id="explore-people" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;padding:8px 16px 20px"></div>
         <div style="padding:4px 16px 4px;font-family:var(--font-display);font-size:14px;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:8px;border-top:1px solid var(--border);padding-top:16px">
@@ -3075,15 +3126,15 @@ async function renderExplore(main) {
               ${avatarHtml(p, 36)}
               <div style="flex:1;min-width:0">
                 <div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.display_name || p.username)}</div>
-                <div style="font-size:11px;color:var(--text-muted)">@${escapeHtml(p.username)} ${p.is_github ? '<i class="fa-brands fa-github" style="color:#8b92b8;font-size:10px"></i>' : ''}</div>
+                <div style="font-size:11px;color:var(--text-muted)">@${escapeHtml(p.username)}</div>
               </div>
             </div>
-            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;line-height:1.45;min-height:32px">${escapeHtml((p.bio || '').slice(0, 80) || 'Developer on Devit')}</div>
-            ${(p.tech_stack || []).length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${p.tech_stack.slice(0,3).map(t => `<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:20px;background:rgba(255,45,110,0.08);border:1px solid rgba(255,45,110,0.15);color:var(--cyan)">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;line-height:1.45;min-height:32px">${escapeHtml((p.bio || '').slice(0, 80) || 'Aviator on Planebook')}</div>
+            
             <button class="follow-btn" data-uid="${p.id}" style="width:100%;font-size:12px">Follow</button>
           </div>`).join('');
       } else {
-        peopleEl.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;grid-column:1/-1">No other developers yet 🌱</div>`;
+        peopleEl.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;grid-column:1/-1">No other aviators yet 🌱</div>`;
       }
 
       const commEl = $('#explore-communities', content);
@@ -3097,6 +3148,7 @@ async function renderExplore(main) {
         btn.addEventListener('click', async e => {
           e.stopPropagation();
           const uid = btn.dataset.uid;
+          if (guestGuard('follow people')) { btn.disabled = false; return; }
           btn.disabled = true; btn.textContent = '…';
           const { error } = await sb.from('op_follows').insert({ follower_id: State.user.id, following_id: uid });
           if (!error || error.code === '23505') {
@@ -3140,66 +3192,6 @@ async function renderExplore(main) {
         feed.appendChild(buildPostCard(p, p.profiles, likedIds.has(p.id), false));
       });
 
-    } else if (tabId === 'collab') {
-      const { data: posts } = await sb.from('op_posts')
-        .select('id, content, code_block, code_lang, image_url, likes_count, comments_count, reposts_count, created_at, author_id, collab_tags, profiles!posts_author_id_fkey(id, username, display_name, avatar_url)')
-        .not('collab_tags', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(20);
-      content.innerHTML = `
-        <div style="padding:12px 16px 4px">
-          <div style="font-family:var(--font-display);font-size:14px;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:8px;margin-bottom:4px"><i class="fa-solid fa-people-group" style="color:var(--emerald)"></i> Looking for Collaborators</div>
-          <div style="font-size:12px;color:var(--text-muted);line-height:1.5">Developers actively seeking co-founders, contributors, and beta testers.</div>
-        </div>
-        <div id="collab-board-feed"></div>`;
-      const feed = $('#collab-board-feed', content);
-      if (!posts?.length) {
-        feed.innerHTML = `<div style="padding:48px 24px;text-align:center;color:var(--text-muted)"><div style="font-size:40px;margin-bottom:12px">🤝</div><div style="font-size:14px;font-weight:600">No collaboration posts yet</div><div style="font-size:12px;margin-top:6px">Be the first to post with the Collab tag!</div></div>`;
-        return;
-      }
-      const postIds = posts.map(p => p.id);
-      const { data: likes } = await sb.from('op_post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
-      const likedIds = new Set((likes || []).map(l => l.post_id));
-      posts.forEach(p => feed.appendChild(buildPostCard(p, p.profiles, likedIds.has(p.id), false)));
-
-    } else if (tabId === 'stacks') {
-      const POPULAR_STACKS = ['JavaScript','TypeScript','Python','React','Rust','Go','Vue','Swift','Kotlin','Node.js','Next.js','PostgreSQL'];
-      content.innerHTML = `
-        <div style="padding:12px 16px 8px;font-family:var(--font-display);font-size:14px;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-layer-group" style="color:var(--sky)"></i> Browse by Stack</div>
-        <div style="padding:0 16px 16px;display:flex;flex-wrap:wrap;gap:8px" id="stack-select-chips">
-          ${POPULAR_STACKS.map(s => `<button class="stack-select-chip" data-stack="${escapeHtml(s)}" style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid var(--border);background:var(--bg-surface);color:var(--text-secondary);cursor:pointer;transition:all 0.15s">${escapeHtml(s)}</button>`).join('')}
-        </div>
-        <div id="stack-browse-people" style="padding:0 16px 24px"></div>`;
-
-      $$('.stack-select-chip', content).forEach(chip => {
-        chip.addEventListener('click', async () => {
-          $$('.stack-select-chip', content).forEach(c => { c.style.background='var(--bg-surface)'; c.style.color='var(--text-secondary)'; c.style.borderColor='var(--border)'; });
-          chip.style.background = 'var(--cyan-dim)'; chip.style.color = 'var(--cyan)'; chip.style.borderColor = 'rgba(255,45,110,0.4)';
-          const stack = chip.dataset.stack;
-          const peopleEl = $('#stack-browse-people', content);
-          peopleEl.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:16px"><i class="fa-solid fa-spinner fa-spin"></i></div>`;
-          const { data: devs } = await sb.from('op_profiles').select('id, username, display_name, avatar_url, bio, tech_stack, is_github').contains('tech_stack', [stack]).neq('id', State.user.id).limit(12);
-          if (!devs?.length) { peopleEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px">No devs with <strong>${escapeHtml(stack)}</strong> in their stack yet</div>`; return; }
-          peopleEl.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:10px">${devs.length} developer${devs.length!==1?'s':''} using <span style="color:var(--cyan)">${escapeHtml(stack)}</span></div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px">
-            ${devs.map(p => `<div class="explore-person-card" data-uid="${p.id}">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">${avatarHtml(p,36)}<div><div style="font-weight:700;font-size:13px">${escapeHtml(p.display_name||p.username)}</div><div style="font-size:11px;color:var(--text-muted)">@${escapeHtml(p.username)}</div></div></div>
-              <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;min-height:28px">${escapeHtml((p.bio||'').slice(0,70)||'Developer on Devit')}</div>
-              <button class="follow-btn" data-uid="${p.id}" style="width:100%;font-size:12px">Follow</button>
-            </div>`).join('')}
-          </div>`;
-          $$('.follow-btn', peopleEl).forEach(btn => {
-            btn.addEventListener('click', async e => {
-              e.stopPropagation(); const uid = btn.dataset.uid; btn.disabled=true; btn.textContent='…';
-              const { error } = await sb.from('op_follows').insert({ follower_id: State.user.id, following_id: uid });
-              if (!error || error.code==='23505') { await incrementFollowCounts(uid, State.user.id); btn.innerHTML='<i class="fa-solid fa-check"></i> Following'; btn.style.opacity='0.6'; }
-              else { btn.textContent='Follow'; btn.disabled=false; }
-            });
-          });
-          $$('.explore-person-card[data-uid]', peopleEl).forEach(card => {
-            card.addEventListener('click', e => { if (!e.target.closest('.follow-btn')) openProfileQuickView(card.dataset.uid); });
-          });
-        });
-      });
     }
   }
 
@@ -4303,7 +4295,7 @@ async function renderProfile(main, userId = null) {
         </div>
       </div>
       <div class="profile-identity">
-        <div class="profile-name">${safeName}${profile.is_github ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#24292e;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;letter-spacing:0.01em;margin-left:6px;"><i class=\"fa-brands fa-github\" style=\"font-size:12px;\"></i>GitHub</span>' : ''}</div>
+        <div class="profile-name">${safeName}</div>
         <div class="profile-handle">@${safeHandle} ${State.onlineUsers.has(targetId) ? '<span style="color:var(--emerald);font-size:12px">● Online</span>' : ''}</div>
       </div>
       <div class="profile-actions-center">
@@ -4325,10 +4317,7 @@ async function renderProfile(main, userId = null) {
         <div class="profile-stat"><strong>${fmtNum(profile.followers_count || 0)}</strong> <span>Followers</span></div>
         <div class="profile-stat"><strong>${fmtNum(profile.posts_count || 0)}</strong> <span>Posts</span></div>
       </div>
-      ${profile.tech_stack?.length ? `
-        <div class="profile-stack-label"><i class="fa-solid fa-layer-group"></i> Stack <span style="font-size:10px;color:var(--text-muted);font-weight:400;margin-left:4px">(click to endorse)</span></div>
-        <div class="tech-stack" id="profile-tech-stack">${profile.tech_stack.map(t => `<span class="tech-badge tech-badge-endorsable" data-tag="${escapeHtml(t)}" data-skill="${escapeHtml(t)}"><i class="fa-solid fa-code"></i>${escapeHtml(t)}<span class="endorse-count" data-skill="${escapeHtml(t)}"></span></span>`).join('')}</div>
-      ` : ''}
+
       ${(() => {
         const badges = computeBadges(profile);
         return badges.length ? `
@@ -4339,7 +4328,7 @@ async function renderProfile(main, userId = null) {
     </div>
     <div class="profile-tabs">
       <div class="profile-tab-list">
-        ${['Posts','Repos'].map((t,i) => `<div class="profile-tab ${i===0?'active':''}" data-ptab="${t}">${t}</div>`).join('')}
+        ${['Posts'].map((t,i) => `<div class="profile-tab ${i===0?'active':''}" data-ptab="${t}">${t}</div>`).join('')}
       </div>
     </div>
     <div id="profile-content"></div>
@@ -4429,7 +4418,7 @@ async function renderProfile(main, userId = null) {
       tab.classList.add('active');
       const content = $('#profile-content');
       if (tab.dataset.ptab === 'Posts') loadProfilePosts(content, targetId);
-      else if (tab.dataset.ptab === 'Repos') loadProfileRepos(content, profile);
+
       else content.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">Coming soon 🔜</div>`;
     });
   });
@@ -4832,7 +4821,7 @@ function renderEditProfile(main) {
         <div class="auth-input-group"><label>Bio</label><textarea id="ep-bio" class="auth-input" placeholder="Tell the world about yourself" rows="3" style="resize:vertical">${profile.bio||''}</textarea></div>
         <div class="auth-input-group"><label>Location</label><input type="text" id="ep-location" class="auth-input" value="${profile.location||''}" placeholder="City, Country"></div>
         <div class="auth-input-group"><label>Website</label><input type="url" id="ep-website" class="auth-input" value="${profile.website||''}" placeholder="https://yoursite.dev"></div>
-        <div class="auth-input-group"><label>Tech Stack (comma-separated)</label><input type="text" id="ep-tech" class="auth-input" value="${(profile.tech_stack||[]).join(', ')}" placeholder="React, TypeScript, Node.js"></div>
+        
 
         <div id="ep-save-status" style="font-size:12px;color:var(--text-muted);display:none"></div>
         <button class="auth-btn-primary" id="ep-save-btn">Save Changes</button>
@@ -4989,16 +4978,12 @@ function renderEditProfile(main) {
       }
     }
 
-    const techRaw = document.getElementById('ep-tech').value;
-    const techStack = techRaw.split(',').map(t => t.trim()).filter(Boolean);
-
     const updates = {
       display_name: document.getElementById('ep-display-name').value.trim(),
       username: document.getElementById('ep-username').value.trim().toLowerCase(),
       bio: document.getElementById('ep-bio').value.trim(),
       location: document.getElementById('ep-location').value.trim(),
       website: document.getElementById('ep-website').value.trim(),
-      tech_stack: techStack,
       avatar_url: avatarUrl,
       banner_url: bannerUrl,
       banner_color: newBannerColor,
@@ -5351,7 +5336,7 @@ function buildSnippetCard(snippet) {
     <div style="position:absolute;left:0;right:72px;bottom:16px;z-index:4;padding:0 16px">
       <div class="snip-author-info" data-uid="${snippet.profiles?.id || ''}" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
         <div style="font-size:14px;font-weight:700;color:#fff">@${username}</div>
-        ${snippet.profiles?.is_github ? `<span style="display:inline-flex;align-items:center;gap:3px;background:#24292e;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;line-height:1.5;"><i class="fa-brands fa-github" style="font-size:11px;"></i> GitHub</span>` : ''}
+        
       </div>
       ${snippet.caption ? `
         <div style="font-size:13px;color:rgba(255,255,255,0.9);line-height:1.5;
@@ -5640,7 +5625,7 @@ async function loadSnippetComments(snippetId, container) {
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span style="font-size:13px;font-weight:700;color:var(--text-primary);">${escapeHtml(p?.display_name || p?.username || 'User')}</span>
-          ${p?.is_github ? `<span style="display:inline-flex;align-items:center;gap:3px;background:#24292e;color:#fff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:999px;"><i class="fa-brands fa-github" style="font-size:9px;"></i></span>` : ''}
+          
           <span style="font-size:11px;color:var(--text-muted);">${timeAgo(c.created_at)}</span>
         </div>
         <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;line-height:1.4;">${escapeHtml(c.content)}</div>
@@ -5834,8 +5819,7 @@ function openProfileEditModal(profile) {
         <input type="url" id="edit-website" class="auth-input" value="${profile.website || ''}" placeholder="https://yoursite.dev" autocomplete="url">
       </div>
       <div class="auth-input-group">
-        <label>Tech Stack (comma-separated)</label>
-        <input type="text" id="edit-tech" class="auth-input" value="${(profile.tech_stack || []).join(', ')}" placeholder="React, TypeScript, Node.js" autocomplete="off">
+
       </div>
       <div id="edit-status" style="font-size:12px;color:var(--text-muted);display:none"></div>
       <button class="auth-btn-primary" id="save-profile-btn">Save Changes</button>
@@ -5941,14 +5925,12 @@ function openProfileEditModal(profile) {
       bannerUrl = sb.storage.from('post-images').getPublicUrl(path).data.publicUrl + '?t=' + Date.now();
     }
 
-    const tech_stack = document.getElementById('edit-tech').value.split(',').map(t => t.trim()).filter(Boolean);
     const { error } = await sb.from('op_profiles').update({
       display_name: document.getElementById('edit-display-name').value.trim(),
       username: document.getElementById('edit-username').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'),
       bio: document.getElementById('edit-bio').value.trim(),
       location: document.getElementById('edit-location').value.trim(),
       website: document.getElementById('edit-website').value.trim(),
-      tech_stack,
       avatar_url: avatarUrl,
       banner_url: bannerUrl,
       banner_color: newBannerColor,
@@ -7554,996 +7536,6 @@ console.log('[Devit Features Patch v2] ✓ Loaded: GitHub autofill, Polls, Diges
 
 
 /* ══════════════════════════════════════════════════════════════
-   GITHUB INTEGRATION
-   Repos · Contribution graph · Currently Building · Ship Logs
-   Stacks · Builds · Repo share · Badge chip
-══════════════════════════════════════════════════════════════ */
-
-/* ── GitHub cache (session-scoped) ─────────────────────────── */
-const GHCache = {
-  user:      null,
-  repos:     null,
-  pinned:    null,   // from DB (stored profile field)
-  langs:     {},     // repoName → language map
-  commits:   {},     // repoName → [commits]
-  contribs:  null,   // 52-week contribution array
-  token:     null,   // provider_token from Supabase session (GitHub OAuth only)
-  username:  null,   // GitHub login
-};
-
-/* ── Token retrieval ─────────────────────────────────────────── */
-// Retrieve GitHub OAuth token from the active Supabase session.
-// Only available immediately after GitHub OAuth sign-in
-// (Supabase doesn't persist provider_token between page loads).
-async function getGHToken() {
-  if (GHCache.token) return GHCache.token;
-  try {
-    const { data } = await sb.auth.getSession();
-    if (data?.session?.provider_token && data?.session?.user?.app_metadata?.provider === 'github') {
-      GHCache.token    = data.session.provider_token;
-      GHCache.username = data.session.user.user_metadata?.user_name || null;
-    }
-  } catch (_) {}
-  return GHCache.token;
-}
-
-/* ── Generic GH API fetch ────────────────────────────────────── */
-async function ghFetch(path, token) {
-  const headers = token
-    ? { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' }
-    : { Accept: 'application/vnd.github+json' };
-  const res = await fetch(`https://api.github.com${path}`, { headers });
-  if (!res.ok) return null;
-  return res.json();
-}
-
-/* ── Public username from profile ────────────────────────────── */
-function getGHUsername(profile) {
-  // Always derive the username from the profile being viewed.
-  // NEVER fall back to GHCache.username here — that belongs to the
-  // signed-in user and would leak their repos onto other people's profiles.
-  return profile?.github_username || profile?.username || null;
-}
-
-/* ── Own GitHub username (signed-in user only) ───────────────── */
-function getOwnGHUsername() {
-  return GHCache.username || window.State?.profile?.github_username || window.State?.profile?.username || null;
-}
-
-/* ── Fetch repos for a specific username ─────────────────────── */
-// token is only used when username matches the signed-in user,
-// so we never accidentally serve the authed user's private repos
-// on someone else's profile page.
-async function fetchGHRepos(username, token) {
-  if (!username) return [];
-
-  // Only use the authenticated endpoint when viewing your OWN profile
-  const ownUsername = getOwnGHUsername();
-  const isOwnProfile = ownUsername && ownUsername.toLowerCase() === username.toLowerCase();
-
-  // Cache hit — keyed by username so different profiles don't share cache
-  if (GHCache.repos && GHCache.repos._for === username) return GHCache.repos;
-
-  let data;
-  if (isOwnProfile && token) {
-    // Authenticated: can see private repos too
-    data = await ghFetch(`/user/repos?sort=updated&per_page=30&type=owner`, token);
-  } else {
-    // Public API — only public repos, no token sent
-    data = await ghFetch(`/users/${encodeURIComponent(username)}/repos?sort=updated&per_page=30`, null);
-  }
-
-  const repos = Array.isArray(data) ? data : [];
-  repos._for = username;
-  // Only cache if it's the own profile (other profiles shouldn't poison the cache)
-  if (isOwnProfile) GHCache.repos = repos;
-  return repos;
-}
-
-/* ── Language colour map ─────────────────────────────────────── */
-const LANG_COLORS = {
-  JavaScript:'#f1e05a', TypeScript:'#3178c6', Python:'#3572A5', Rust:'#dea584',
-  Go:'#00ADD8', Java:'#b07219', 'C++':'#f34b7d', C:'#555555', CSS:'#563d7c',
-  HTML:'#e34c26', Ruby:'#701516', Swift:'#F05138', Kotlin:'#A97BFF',
-  PHP:'#4F5D95', Dart:'#00B4AB', Shell:'#89e051', Vue:'#41b883', Svelte:'#ff3e00',
-};
-function langDot(lang) {
-  const col = LANG_COLORS[lang] || '#8b92b8';
-  return `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0"></span>`;
-}
-
-/* ══════════════════════════════════════════════════════════════
-   1. REPOS TAB — full repo grid with rich cards
-   ══════════════════════════════════════════════════════════════ */
-
-async function loadProfileRepos(container, profile) {
-  if (!container) return;
-  container.innerHTML = `
-    <div style="padding:32px;text-align:center;color:var(--text-muted)">
-      <i class="fa-brands fa-github" style="font-size:28px;margin-bottom:10px;display:block"></i>
-      Loading repositories…
-    </div>`;
-
-  const token    = await getGHToken();
-  const username = getGHUsername(profile);
-
-  if (!profile?.is_github && !username) {
-    _renderNoGitHub(container);
-    return;
-  }
-
-  const repos = await fetchGHRepos(username, token).catch(() => []);
-
-  if (!repos.length) {
-    container.innerHTML = `
-      <div style="padding:48px;text-align:center;color:var(--text-muted)">
-        <i class="fa-solid fa-box-open" style="font-size:36px;margin-bottom:12px;display:block"></i>
-        <div style="font-weight:600">No public repos found</div>
-        <div style="font-size:12px;margin-top:4px">Repositories are pulled from GitHub's public API.</div>
-      </div>`;
-    return;
-  }
-
-  // Sort: pinned first, then stars desc
-  const pinnedNames = new Set(profile?.pinned_repos || []);
-  const sorted = [
-    ...repos.filter(r => pinnedNames.has(r.name)),
-    ...repos.filter(r => !pinnedNames.has(r.name)).sort((a,b) => b.stargazers_count - a.stargazers_count),
-  ];
-
-  const isOwn = profile.id === window.State?.user?.id;
-
-  container.innerHTML = `
-    <div style="padding:16px 16px 8px;display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:12px;color:var(--text-muted)">${repos.length} repositories</div>
-      ${isOwn ? `<button id="gh-sync-btn" style="font-size:12px;color:var(--cyan);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:5px"><i class="fa-solid fa-rotate"></i> Sync from GitHub</button>` : ''}
-    </div>
-    <div id="gh-repos-grid" style="padding:0 16px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px"></div>
-    <div style="padding:4px 16px 20px;text-align:center">
-      <a href="https://github.com/${encodeURIComponent(username)}" target="_blank" rel="noopener noreferrer"
-         style="font-size:12px;color:var(--text-muted);display:inline-flex;align-items:center;gap:6px;text-decoration:none">
-        <i class="fa-brands fa-github"></i> github.com/${username}
-      </a>
-    </div>`;
-
-  const grid = container.querySelector('#gh-repos-grid');
-  sorted.forEach(r => grid.appendChild(_buildRepoCard(r, pinnedNames.has(r.name), isOwn, profile)));
-
-  // Sync button — re-runs GitHub autofill and refreshes tech stack
-  const syncBtn = container.querySelector('#gh-sync-btn');
-  if (syncBtn) {
-    syncBtn.addEventListener('click', async () => {
-      syncBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing…';
-      syncBtn.disabled = true;
-      GHCache.repos = null; // invalidate cache
-      await syncGitHubToProfile(token, profile.id);
-      window.toast('GitHub synced!', 'rotate');
-      loadProfileRepos(container, { ...profile, ...window.State?.profile });
-    });
-  }
-}
-
-function _buildRepoCard(r, isPinned, isOwn, profile) {
-  const card = document.createElement('a');
-  card.href   = r.html_url;
-  card.target = '_blank';
-  card.rel    = 'noopener noreferrer';
-  card.style.cssText = 'text-decoration:none;display:block';
-
-  const langDotHtml = r.language ? `${langDot(r.language)}<span style="font-size:11px">${r.language}</span>` : '';
-
-  card.innerHTML = `
-    <div class="gh-repo-card${isPinned ? ' gh-repo-pinned' : ''}">
-      <div class="gh-repo-card-header">
-        <div style="display:flex;align-items:center;gap:6px;min-width:0">
-          <i class="fa-solid fa-code-branch" style="color:var(--cyan);font-size:12px;flex-shrink:0"></i>
-          <span class="gh-repo-name">${_esc(r.name)}</span>
-          ${r.fork ? `<span class="gh-chip" style="background:rgba(255,107,53,0.12);color:var(--violet)">fork</span>` : ''}
-          ${r.archived ? `<span class="gh-chip">archived</span>` : ''}
-          ${isPinned ? `<span class="gh-chip" style="background:rgba(251,191,36,0.1);color:var(--amber)"><i class="fa-solid fa-thumbtack" style="font-size:8px"></i> pinned</span>` : ''}
-        </div>
-        ${isOwn ? `<button class="gh-pin-btn" data-repo="${_esc(r.name)}" data-pinned="${isPinned}" title="${isPinned ? 'Unpin' : 'Pin to profile'}" style="color:${isPinned ? 'var(--amber)' : 'var(--text-muted)'};font-size:13px;padding:2px 6px;border-radius:6px;transition:color 0.15s">
-          <i class="fa-solid fa-thumbtack"></i>
-        </button>` : ''}
-      </div>
-      ${r.description ? `<div class="gh-repo-desc">${_esc(r.description)}</div>` : ''}
-      <div class="gh-repo-meta">
-        ${langDotHtml ? `<span style="display:flex;align-items:center;gap:5px">${langDotHtml}</span>` : ''}
-        <span style="display:flex;align-items:center;gap:4px"><i class="fa-regular fa-star" style="font-size:10px;color:var(--amber)"></i>${r.stargazers_count || 0}</span>
-        <span style="display:flex;align-items:center;gap:4px"><i class="fa-solid fa-code-fork" style="font-size:10px"></i>${r.forks_count || 0}</span>
-        <span style="margin-left:auto;font-size:10px;color:var(--text-muted)">${_timeAgo(r.pushed_at)}</span>
-      </div>
-      <div class="gh-repo-actions">
-        <button class="gh-action-btn gh-share-btn" data-repo="${_esc(r.name)}" data-url="${_esc(r.html_url)}" data-desc="${_esc(r.description||'')}" title="Share to Devit feed">
-          <i class="fa-solid fa-paper-plane"></i> Share
-        </button>
-        <a href="${_esc(r.html_url)}" target="_blank" rel="noopener noreferrer" class="gh-action-btn" style="text-decoration:none" onclick="event.stopPropagation()">
-          <i class="fa-brands fa-github"></i> Open
-        </a>
-      </div>
-    </div>`;
-
-  // Pin / unpin
-  const pinBtn = card.querySelector('.gh-pin-btn');
-  if (pinBtn) {
-    pinBtn.addEventListener('click', async e => {
-      e.preventDefault();
-      e.stopPropagation();
-      const repoName = pinBtn.dataset.repo;
-      const wasPinned = pinBtn.dataset.pinned === 'true';
-      pinBtn.disabled = true;
-      const { data: p } = await sb.from('op_profiles').select('pinned_repos').eq('id', window.State.user.id).single();
-      let pinned = p?.pinned_repos || [];
-      if (wasPinned) pinned = pinned.filter(n => n !== repoName);
-      else if (pinned.length < 6) pinned = [...pinned, repoName];
-      else { window.toast('Max 6 pinned repos', 'circle-exclamation'); pinBtn.disabled = false; return; }
-      await sb.from('op_profiles').update({ pinned_repos: pinned }).eq('id', window.State.user.id);
-      window.toast(wasPinned ? 'Unpinned' : 'Pinned to profile!', 'thumbtack');
-      // Refresh the card
-      const parentCard = pinBtn.closest('.gh-repo-card');
-      if (parentCard) {
-        parentCard.classList.toggle('gh-repo-pinned', !wasPinned);
-        pinBtn.style.color = wasPinned ? 'var(--text-muted)' : 'var(--amber)';
-        pinBtn.dataset.pinned = String(!wasPinned);
-      }
-      pinBtn.disabled = false;
-    });
-  }
-
-  // Share repo as Devit post
-  const shareBtn = card.querySelector('.gh-share-btn');
-  if (shareBtn) {
-    shareBtn.addEventListener('click', async e => {
-      e.preventDefault();
-      e.stopPropagation();
-      openShareRepoModal(shareBtn.dataset.repo, shareBtn.dataset.url, shareBtn.dataset.desc);
-    });
-  }
-
-  return card;
-}
-
-/* ── Share repo as post ──────────────────────────────────────── */
-function openShareRepoModal(repoName, repoUrl, repoDesc) {
-  const modal = document.getElementById('modal-overlay');
-  const body  = document.getElementById('modal-body');
-  document.getElementById('modal-title-text').textContent = `Share ${repoName}`;
-  modal.classList.add('open');
-
-  const defaultText = `🚀 Check out my repo: **${repoName}**\n${repoDesc ? repoDesc + '\n' : ''}\n${repoUrl}`;
-  body.innerHTML = `
-    <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
-      <textarea id="share-repo-text" class="auth-input" rows="5" style="resize:vertical;font-size:13px">${_esc(defaultText)}</textarea>
-      <div style="font-size:12px;color:var(--text-muted)">This will post to your Devit feed with a GitHub repo card.</div>
-      <button class="auth-btn-primary" id="share-repo-submit"><i class="fa-brands fa-github"></i> Post to Devit</button>
-    </div>`;
-
-  document.getElementById('share-repo-submit').addEventListener('click', async () => {
-    const text = document.getElementById('share-repo-text').value.trim();
-    if (!text) return;
-    const btn = document.getElementById('share-repo-submit');
-    btn.disabled = true; btn.textContent = 'Posting…';
-    const { error } = await sb.from('op_posts').insert({
-      author_id:  window.State.user.id,
-      content:    text,
-      github_repo: JSON.stringify({ name: repoName, url: repoUrl, desc: repoDesc }),
-    });
-    if (error) window.toast('Failed: ' + error.message, 'circle-exclamation');
-    else {
-      modal.classList.remove('open');
-      window.toast('Repo shared to your feed!', 'paper-plane');
-    }
-  });
-}
-
-/* ── No GitHub connected state ───────────────────────────────── */
-function _renderNoGitHub(container) {
-  container.innerHTML = `
-    <div style="padding:48px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px">
-      <div style="width:72px;height:72px;background:#24292e;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px">
-        <i class="fa-brands fa-github" style="color:#fff"></i>
-      </div>
-      <div>
-        <div style="font-size:16px;font-weight:700;margin-bottom:4px">No GitHub connected</div>
-        <div style="font-size:13px;color:var(--text-muted);line-height:1.5;max-width:260px">
-          Sign in with GitHub OAuth to show your repositories, contribution graph, and build history here.
-        </div>
-      </div>
-    </div>`;
-}
-
-
-/* ══════════════════════════════════════════════════════════════
-   2. CONTRIBUTION GRAPH — 52-week heatmap
-   ══════════════════════════════════════════════════════════════ */
-
-async function renderContributionGraph(container, profile) {
-  const username = getGHUsername(profile);
-  if (!username) return;
-
-  // GH contribution data requires GraphQL or scraping — use public events as proxy
-  // We'll build a heatmap from public push events (free, no token needed)
-  const token = await getGHToken();
-  let events = [];
-  try {
-    const data = await ghFetch(`/users/${encodeURIComponent(username)}/events/public?per_page=100`, token);
-    events = Array.isArray(data) ? data.filter(e => e.type === 'PushEvent') : [];
-  } catch (_) {}
-
-  // Build day → count map for last 52 weeks (364 days)
-  const dayMap = {};
-  const now = Date.now();
-  events.forEach(ev => {
-    const d = new Date(ev.created_at);
-    const diff = Math.floor((now - d) / 86400000);
-    if (diff <= 364) {
-      const key = _dayKey(d);
-      dayMap[key] = (dayMap[key] || 0) + (ev.payload?.commits?.length || 1);
-    }
-  });
-
-  // Build 52 columns of 7 days
-  const weeks = [];
-  for (let w = 51; w >= 0; w--) {
-    const days = [];
-    for (let d = 6; d >= 0; d--) {
-      const date = new Date(now - (w * 7 + d) * 86400000);
-      const key  = _dayKey(date);
-      days.push({ date, count: dayMap[key] || 0 });
-    }
-    weeks.push(days);
-  }
-
-  const maxCount = Math.max(...Object.values(dayMap), 1);
-
-  const svgW = 52 * 13;
-  const svgH = 7  * 13;
-
-  let cellsSvg = '';
-  weeks.forEach((days, wi) => {
-    days.forEach((day, di) => {
-      const intensity = day.count === 0 ? 0 : Math.min(4, Math.ceil((day.count / maxCount) * 4));
-      const colors = ['#161b22','#0e4429','#006d32','#26a641','#39d353'];
-      const x = wi * 13;
-      const y = (6 - di) * 13;
-      cellsSvg += `<rect x="${x}" y="${y}" width="11" height="11" rx="2" fill="${colors[intensity]}"
-        title="${day.date.toDateString()}: ${day.count} push event${day.count !== 1?'s':''}"/>`;
-    });
-  });
-
-  const graphEl = document.createElement('div');
-  graphEl.className = 'gh-contrib-wrap';
-  graphEl.innerHTML = `
-    <div class="gh-section-title">
-      <i class="fa-solid fa-chart-simple" style="color:var(--emerald)"></i>
-      Contribution Activity
-      <span style="font-size:11px;color:var(--text-muted);font-weight:400;margin-left:6px">(push events, last 12 months)</span>
-    </div>
-    <div style="overflow-x:auto;padding:4px 0 8px">
-      <svg width="${svgW}" height="${svgH}" xmlns="http://www.w3.org/2000/svg" style="display:block">${cellsSvg}</svg>
-    </div>
-    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);margin-top:4px">
-      Less
-      ${['#161b22','#0e4429','#006d32','#26a641','#39d353'].map(c => `<span style="width:10px;height:10px;border-radius:2px;background:${c};display:inline-block"></span>`).join('')}
-      More
-    </div>`;
-
-  container.appendChild(graphEl);
-}
-
-function _dayKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
-}
-
-
-/* ══════════════════════════════════════════════════════════════
-   3. "CURRENTLY BUILDING" CARD — latest pushed repo
-   ══════════════════════════════════════════════════════════════ */
-
-async function renderCurrentlyBuilding(container, profile) {
-  const username = getGHUsername(profile);
-  if (!username) return;
-
-  const token = await getGHToken();
-  const repos  = await fetchGHRepos(username, token).catch(() => []);
-  if (!repos.length) return;
-
-  // Most recently pushed non-fork repo
-  const latest = repos
-    .filter(r => !r.archived)
-    .sort((a, b) => new Date(b.pushed_at) - new Date(a.pushed_at))[0];
-
-  if (!latest) return;
-
-  // Fetch latest commit on default branch
-  let latestCommit = null;
-  try {
-    const commits = await ghFetch(
-      `/repos/${encodeURIComponent(username)}/${encodeURIComponent(latest.name)}/commits?per_page=1`,
-      token
-    );
-    if (Array.isArray(commits) && commits[0]) latestCommit = commits[0];
-  } catch (_) {}
-
-  const card = document.createElement('div');
-  card.className = 'gh-building-card';
-  card.innerHTML = `
-    <div class="gh-section-title">
-      <i class="fa-solid fa-hammer" style="color:var(--amber)"></i>
-      Currently Building
-    </div>
-    <div style="display:flex;align-items:flex-start;gap:14px;margin-top:10px">
-      <div style="width:44px;height:44px;background:#24292e;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">
-        <i class="fa-brands fa-github" style="color:#fff"></i>
-      </div>
-      <div style="flex:1;min-width:0">
-        <a href="${_esc(latest.html_url)}" target="_blank" rel="noopener noreferrer"
-           style="font-size:15px;font-weight:700;color:var(--cyan);text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-           onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
-          ${_esc(latest.name)}
-        </a>
-        ${latest.description ? `<div style="font-size:12px;color:var(--text-secondary);margin:2px 0 6px;line-height:1.4">${_esc(latest.description)}</div>` : ''}
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          ${latest.language ? `<span style="display:flex;align-items:center;gap:5px;font-size:11px">${langDot(latest.language)}<span>${_esc(latest.language)}</span></span>` : ''}
-          <span style="font-size:11px;color:var(--text-muted)"><i class="fa-regular fa-star" style="color:var(--amber)"></i> ${latest.stargazers_count}</span>
-          <span style="font-size:11px;color:var(--text-muted)">pushed ${_timeAgo(latest.pushed_at)}</span>
-        </div>
-        ${latestCommit ? `
-          <div style="margin-top:8px;padding:8px 10px;background:var(--bg-elevated);border-radius:8px;border-left:2px solid var(--cyan)">
-            <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">Latest commit</div>
-            <div style="font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-              ${_esc((latestCommit.commit?.message || '').split('\n')[0].slice(0,80))}
-            </div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:3px">${_esc(latestCommit.commit?.author?.name || '')} · ${_timeAgo(latestCommit.commit?.author?.date)}</div>
-          </div>` : ''}
-      </div>
-    </div>`;
-
-  container.appendChild(card);
-}
-
-
-/* ══════════════════════════════════════════════════════════════
-   4. SHIP LOGS — commit timeline
-   ══════════════════════════════════════════════════════════════ */
-
-async function renderShipLogs(container, profile) {
-  const username = getGHUsername(profile);
-  if (!username) return;
-
-  const token = await getGHToken();
-
-  // Fetch public push events
-  let events = [];
-  try {
-    const data = await ghFetch(`/users/${encodeURIComponent(username)}/events/public?per_page=30`, token);
-    events = Array.isArray(data) ? data.filter(e => e.type === 'PushEvent').slice(0, 15) : [];
-  } catch (_) {}
-
-  if (!events.length) return;
-
-  const section = document.createElement('div');
-  section.className = 'gh-shiplogs-section';
-  section.innerHTML = `
-    <div class="gh-section-title" style="margin-bottom:12px">
-      <i class="fa-solid fa-ship" style="color:var(--violet)"></i>
-      Ship Logs
-      <span style="font-size:11px;color:var(--text-muted);font-weight:400;margin-left:6px">recent pushes</span>
-    </div>
-    <div class="gh-timeline">${events.map(ev => {
-      const commits = ev.payload?.commits || [];
-      const repoName = ev.repo?.name?.split('/')[1] || ev.repo?.name || '?';
-      return `
-        <div class="gh-timeline-item">
-          <div class="gh-timeline-dot"></div>
-          <div class="gh-timeline-body">
-            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
-              <span style="font-size:12px;font-weight:700;color:var(--cyan)">${_esc(repoName)}</span>
-              <span style="font-size:10px;color:var(--text-muted)">${_timeAgo(ev.created_at)}</span>
-              <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${commits.length} commit${commits.length !== 1 ? 's' : ''}</span>
-            </div>
-            ${commits.slice(0,3).map(c => `
-              <div style="font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 0">
-                <span style="color:var(--text-muted);margin-right:6px">${(c.sha||'').slice(0,7)}</span>${_esc((c.message||'').split('\n')[0].slice(0,72))}
-              </div>`).join('')}
-            ${commits.length > 3 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">+${commits.length-3} more</div>` : ''}
-          </div>
-        </div>`;
-    }).join('')}</div>`;
-
-  container.appendChild(section);
-}
-
-
-/* ══════════════════════════════════════════════════════════════
-   5. STACKS — infer tech stack from repo languages
-   ══════════════════════════════════════════════════════════════ */
-
-async function syncGitHubToProfile(token, userId) {
-  if (!token) return;
-  try {
-    const ghUser = await ghFetch('/user', token);
-    if (!ghUser) return;
-
-    const repos = await ghFetch('/user/repos?sort=updated&per_page=30&type=owner', token);
-    const repoList = Array.isArray(repos) ? repos : [];
-
-    // Aggregate languages
-    const langCounts = {};
-    repoList.forEach(r => { if (r.language) langCounts[r.language] = (langCounts[r.language] || 0) + 1; });
-    const topLangs = Object.entries(langCounts)
-      .sort((a,b) => b[1]-a[1])
-      .slice(0, 8)
-      .map(([l]) => l);
-
-    // Top repos by stars for tech_stack (repo names)
-    const topRepos = [...repoList]
-      .sort((a,b) => b.stargazers_count - a.stargazers_count)
-      .slice(0, 6)
-      .map(r => r.name);
-
-    const update = {
-      is_github:       true,
-      github_username: ghUser.login,
-      tech_stack:      [...new Set([...topLangs, ...topRepos])].slice(0, 12),
-    };
-    if (ghUser.bio      && !window.State?.profile?.bio)         update.bio = ghUser.bio;
-    if (ghUser.location && !window.State?.profile?.location)    update.location = ghUser.location;
-    if (ghUser.avatar_url)                                       update.avatar_url = ghUser.avatar_url;
-    if (ghUser.blog    && !window.State?.profile?.website)       update.website = ghUser.blog;
-    if (ghUser.name    && !window.State?.profile?.display_name)  update.display_name = ghUser.name;
-
-    await sb.from('op_profiles').update(update).eq('id', userId);
-    if (window.State?.profile) Object.assign(window.State.profile, update);
-    GHCache.user     = ghUser;
-    GHCache.repos    = repoList;
-    GHCache.username = ghUser.login;
-  } catch (e) {
-    console.warn('[Devit GH] syncGitHubToProfile error:', e);
-  }
-}
-
-
-/* ══════════════════════════════════════════════════════════════
-   6. PROFILE PATCH — inject GitHub sections + new tabs
-   ══════════════════════════════════════════════════════════════ */
-
-// Extend renderProfile with GitHub sections (merged — no polling needed)
-(function patchRenderProfile() {
-  // Direct override — renderProfile is already defined above in this file
-  if (typeof window.renderProfile === 'function' && !window._ghProfilePatched) {
-    window._ghProfilePatched = true;
-
-    const originalRender = window.renderProfile;
-
-    window.renderProfile = async function(main, userId) {
-        // Call original
-        await originalRender.call(this, main, userId);
-
-        // After original renders, upgrade the tabs + inject GitHub sections
-        const targetId = userId || window.State?.user?.id;
-        const { data: profile } = await sb.from('op_profiles').select('*').eq('id', targetId).single();
-        if (!profile) return;
-
-        // Replace tab list with extended version
-        const tabList = main.querySelector('.profile-tab-list');
-        if (tabList) {
-          const tabs = profile.is_github
-            ? ['Posts', 'Repos', 'Ship Log']
-            : ['Posts', 'Repos'];
-          tabList.innerHTML = tabs.map((t,i) =>
-            `<div class="profile-tab ${i===0?'active':''}" data-ptab="${t}">${t}</div>`
-          ).join('');
-
-          tabList.querySelectorAll('.profile-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-              tabList.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
-              tab.classList.add('active');
-              const content = document.getElementById('profile-content');
-              if (!content) return;
-              if (tab.dataset.ptab === 'Posts')       window.loadProfilePosts?.(content, targetId);
-              else if (tab.dataset.ptab === 'Repos')  loadProfileRepos(content, profile);
-              else if (tab.dataset.ptab === 'Ship Log') _renderShipLogTab(content, profile);
-            });
-          });
-        }
-
-        // Inject "Currently Building" and Contribution Graph into profile info section
-        if (profile.is_github) {
-          const infoSection = main.querySelector('.profile-info-section');
-          if (infoSection) {
-            const ghExtras = document.createElement('div');
-            ghExtras.id = 'gh-profile-extras';
-            ghExtras.style.cssText = 'margin-top:4px';
-            infoSection.appendChild(ghExtras);
-            // Fire async — don't block profile render
-            renderCurrentlyBuilding(ghExtras, profile);
-            setTimeout(() => renderContributionGraph(ghExtras, profile), 400);
-          }
-        }
-      };
-
-  }
-})();
-
-async function _renderShipLogTab(container, profile) {
-  container.innerHTML = '';
-  await renderShipLogs(container, profile);
-  if (!container.querySelector('.gh-shiplogs-section')) {
-    container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">No ship log data yet — push some commits! 🚢</div>`;
-  }
-}
-
-
-/* ══════════════════════════════════════════════════════════════
-   7. BUILDS — post repo updates to feed from composer
-   ══════════════════════════════════════════════════════════════ */
-
-// Adds a "From GitHub Repo" button to the composer toolbar
-(function patchComposer() {
-  const observer = new MutationObserver(() => {
-    const toolbar = document.querySelector('.composer-toolbar');
-    if (toolbar && !toolbar.querySelector('#gh-repo-picker-btn') && window.State?.profile?.is_github) {
-      const btn = document.createElement('button');
-      btn.id        = 'gh-repo-picker-btn';
-      btn.className = 'composer-tool';
-      btn.title     = 'Share from GitHub repo';
-      btn.innerHTML = `<i class="fa-brands fa-github" style="font-size:15px"></i>`;
-      // Insert before the actions div
-      const actions = toolbar.querySelector('.composer-actions');
-      if (actions) toolbar.insertBefore(btn, actions);
-
-      btn.addEventListener('click', () => openRepoPicker());
-    }
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-})();
-
-async function openRepoPicker() {
-  const modal = document.getElementById('modal-overlay');
-  const body  = document.getElementById('modal-body');
-  document.getElementById('modal-title-text').textContent = '🔗 Share from GitHub';
-  modal.classList.add('open');
-  body.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-muted)"><i class="fa-solid fa-spinner fa-spin" style="font-size:22px"></i></div>`;
-
-  const token    = await getGHToken();
-  const username = getOwnGHUsername(); // composer always posts from the signed-in user
-  const repos    = await fetchGHRepos(username, token).catch(() => []);
-
-  if (!repos.length) {
-    body.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted)">No repos found</div>`;
-    return;
-  }
-
-  body.innerHTML = `
-    <div style="padding:12px 16px 0">
-      <input id="repo-picker-search" class="auth-input" placeholder="Search repos…" style="margin-bottom:10px">
-    </div>
-    <div id="repo-picker-list" style="max-height:360px;overflow-y:auto;padding:0 16px 16px"></div>`;
-
-  const list = document.getElementById('repo-picker-list');
-  const renderList = (filter = '') => {
-    const filtered = repos.filter(r => r.name.toLowerCase().includes(filter.toLowerCase())).slice(0, 20);
-    list.innerHTML = filtered.map(r => `
-      <div class="gh-picker-row" data-name="${_esc(r.name)}" data-url="${_esc(r.html_url)}" data-desc="${_esc(r.description||'')}">
-        <div style="display:flex;align-items:center;gap:8px;min-width:0">
-          <i class="fa-solid fa-code-branch" style="color:var(--cyan);font-size:11px"></i>
-          <span style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(r.name)}</span>
-          ${r.language ? `${langDot(r.language)}` : ''}
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-          <span style="font-size:11px;color:var(--text-muted)">⭐ ${r.stargazers_count}</span>
-          <button class="gh-action-btn" style="font-size:12px">Select</button>
-        </div>
-      </div>`).join('');
-
-    list.querySelectorAll('.gh-picker-row').forEach(row => {
-      row.addEventListener('click', () => {
-        modal.classList.remove('open');
-        // Inject into composer
-        const textarea = document.getElementById('post-textarea');
-        if (textarea) {
-          textarea.value = `🔗 ${row.dataset.name}${row.dataset.desc ? ' — ' + row.dataset.desc : ''}\n${row.dataset.url}`;
-          textarea.dispatchEvent(new Event('input'));
-        }
-      });
-    });
-  };
-
-  renderList();
-  document.getElementById('repo-picker-search').addEventListener('input', e => renderList(e.target.value));
-}
-
-
-/* ══════════════════════════════════════════════════════════════
-   8. GITHUB BADGE ON POST CARDS — "Open in GitHub" chip
-   ══════════════════════════════════════════════════════════════ */
-
-// Patch buildPostCard to render github_repo field as a rich card
-(function patchBuildPostCard() {
-  if (typeof window.buildPostCard === 'function' && !window._ghPostCardPatched) {
-    window._ghPostCardPatched = true;
-
-    const original = window.buildPostCard;
-    window.buildPostCard = function(post, profile, isLiked, isBookmarked) {
-        const card = original.call(this, post, profile, isLiked, isBookmarked);
-        // If post has github_repo data, inject a rich repo chip
-        if (post.github_repo) {
-          try {
-            const repo = typeof post.github_repo === 'string'
-              ? JSON.parse(post.github_repo)
-              : post.github_repo;
-            const chip = document.createElement('div');
-            chip.className = 'gh-post-repo-chip';
-            chip.innerHTML = `
-              <div style="display:flex;align-items:center;gap:8px">
-                <i class="fa-brands fa-github" style="font-size:14px"></i>
-                <div style="flex:1;min-width:0">
-                  <div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(repo.name||'')}</div>
-                  ${repo.desc ? `<div style="font-size:11px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(repo.desc)}</div>` : ''}
-                </div>
-                <a href="${_esc(repo.url||'')}" target="_blank" rel="noopener noreferrer" class="gh-action-btn" onclick="event.stopPropagation()" style="flex-shrink:0;text-decoration:none;font-size:11px">
-                  Open <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:9px"></i>
-                </a>
-              </div>`;
-            // Insert after post-content
-            const content = card.querySelector('.post-content, .post-image-wrap, .post-code') || card.querySelector('.post-actions');
-            if (content) content.parentElement?.insertBefore(chip, content.nextSibling);
-          } catch (_) {}
-        }
-        return card;
-      };
-  }
-})();
-
-
-/* ══════════════════════════════════════════════════════════════
-   9. GITHUB OAUTH HOOK — sync on sign-in
-   ══════════════════════════════════════════════════════════════ */
-
-if (typeof sb !== 'undefined') {
-  sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session?.user?.app_metadata?.provider === 'github' && session.provider_token) {
-      GHCache.token    = session.provider_token;
-      GHCache.username = session.user.user_metadata?.user_name || null;
-      // Delay to let app.js boot first
-      setTimeout(() => syncGitHubToProfile(session.provider_token, session.user.id), 1800);
-    }
-  });
-}
-
-
-/* ══════════════════════════════════════════════════════════════
-   10. CSS — all GitHub integration styles
-   ══════════════════════════════════════════════════════════════ */
-(function injectGHStyles() {
-  if (document.getElementById('devit-gh-styles')) return;
-  const s = document.createElement('style');
-  s.id = 'devit-gh-styles';
-  s.textContent = `
-
-    /* ── Repo grid card ──────────────────────────────────────── */
-    .gh-repo-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 14px 15px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      min-height: 120px;
-      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-    }
-    .gh-repo-card:hover {
-      border-color: rgba(255,45,110,0.3);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-    }
-    .gh-repo-card.gh-repo-pinned {
-      border-color: rgba(251,191,36,0.25);
-      background: linear-gradient(135deg, rgba(251,191,36,0.04), var(--bg-surface));
-    }
-    .gh-repo-card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 6px;
-    }
-    .gh-repo-name {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--cyan);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .gh-repo-desc {
-      font-size: 12px;
-      color: var(--text-secondary);
-      line-height: 1.4;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    .gh-repo-meta {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: auto;
-      flex-wrap: wrap;
-    }
-    .gh-repo-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      border-top: 1px solid var(--border);
-      padding-top: 8px;
-      margin-top: 2px;
-    }
-    .gh-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      font-size: 9px;
-      font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: rgba(255,255,255,0.06);
-      color: var(--text-muted);
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-      flex-shrink: 0;
-    }
-    .gh-pin-btn {
-      padding: 3px 6px;
-      border-radius: 6px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: color 0.15s, background 0.15s;
-    }
-    .gh-pin-btn:hover { background: var(--bg-elevated); }
-
-    /* ── Action buttons ──────────────────────────────────────── */
-    .gh-action-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 5px 10px;
-      border-radius: 8px;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      background: var(--bg-elevated);
-      border: 1px solid var(--border);
-      cursor: pointer;
-      transition: border-color 0.15s, color 0.15s;
-      white-space: nowrap;
-    }
-    .gh-action-btn:hover {
-      border-color: rgba(255,45,110,0.3);
-      color: var(--cyan);
-    }
-
-    /* ── Section titles ──────────────────────────────────────── */
-    .gh-section-title {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-    }
-
-    /* ── Contribution graph ──────────────────────────────────── */
-    .gh-contrib-wrap {
-      padding: 14px 16px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      margin-top: 12px;
-    }
-    .gh-contrib-wrap svg rect { cursor: pointer; }
-
-    /* ── Currently Building card ─────────────────────────────── */
-    .gh-building-card {
-      padding: 14px 16px;
-      background: linear-gradient(135deg, rgba(251,191,36,0.05), var(--bg-surface));
-      border: 1px solid rgba(251,191,36,0.18);
-      border-radius: 14px;
-      margin-top: 12px;
-    }
-
-    /* ── Ship Logs timeline ──────────────────────────────────── */
-    .gh-shiplogs-section {
-      padding: 16px;
-    }
-    .gh-timeline {
-      position: relative;
-      padding-left: 20px;
-    }
-    .gh-timeline::before {
-      content: '';
-      position: absolute;
-      left: 6px;
-      top: 6px;
-      bottom: 0;
-      width: 1px;
-      background: var(--border);
-    }
-    .gh-timeline-item {
-      position: relative;
-      padding: 0 0 18px 16px;
-    }
-    .gh-timeline-item:last-child { padding-bottom: 0; }
-    .gh-timeline-dot {
-      position: absolute;
-      left: -14px;
-      top: 4px;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--violet);
-      border: 2px solid var(--bg-void);
-      flex-shrink: 0;
-    }
-    .gh-timeline-body {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 12px;
-    }
-
-    /* ── Repo picker rows ────────────────────────────────────── */
-    .gh-picker-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: background 0.15s;
-      margin-bottom: 4px;
-      border: 1px solid transparent;
-    }
-    .gh-picker-row:hover {
-      background: var(--bg-elevated);
-      border-color: var(--border);
-    }
-
-    /* ── Post card GitHub repo chip ──────────────────────────── */
-    .gh-post-repo-chip {
-      margin-top: 10px;
-      padding: 10px 12px;
-      background: rgba(36,41,46,0.6);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 12px;
-      border-left: 3px solid #58a6ff;
-      color: var(--text-secondary);
-    }
-
-    /* ── Mobile tweaks ───────────────────────────────────────── */
-    @media (max-width: 640px) {
-      #gh-repos-grid {
-        grid-template-columns: 1fr !important;
-        padding: 0 12px 16px !important;
-      }
-      .gh-contrib-wrap { margin: 8px 12px; }
-      .gh-building-card { margin: 8px 12px 0; }
-    }
-  `;
-  document.head.appendChild(s);
-})();
-
-
-/* ══════════════════════════════════════════════════════════════
    SQL — run in Supabase Dashboard > SQL Editor
    ══════════════════════════════════════════════════════════════ */
 // SQL for GitHub integration is in migrations/ directory
@@ -8662,957 +7654,6 @@ window.buildPostCard = function(post, profile, isLiked = false, isBookmarked = f
 };
 
 
-
-
-/* ══════════════════════════════════════════════════════════════
-   SECTION 3.1 — TECHNICAL & GITHUB DEEP INTEGRATION
-   ① Live Repo Cards   ② Code Sandbox Embeds
-   ③ Auto Ship Posts   ④ GitHub-Native Identity
-   ══════════════════════════════════════════════════════════════ */
-
-/* ── ① LIVE REPO CARDS ─────────────────────────────────────────
-   Patch buildPostCard to render github_repo with real-time data
-   (stars, open issues, latest commit) from the GitHub API.
-   ──────────────────────────────────────────────────────────── */
-
-/**
- * Fetch live GitHub repo data and hydrate the repo chip on a post card.
- * Falls back gracefully when the API is unavailable or rate-limited.
- */
-async function hydrateLiveRepoCard(chip, repoData) {
-  const { owner, name, url } = repoData;
-  if (!owner || !name) return;
-
-  try {
-    const token = await getGHToken();
-    const headers = token
-      ? { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' }
-      : { Accept: 'application/vnd.github+json' };
-
-    const [repoRes, commitRes, goodFirstRes] = await Promise.all([
-      fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`, { headers }),
-      fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/commits?per_page=1`, { headers }),
-      fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/issues?labels=good+first+issue&state=open&per_page=3`, { headers }),
-    ]);
-
-    if (!repoRes.ok) return; // Silently bail on rate limit / 404
-    const repo   = await repoRes.json();
-    const commits = commitRes.ok ? await commitRes.json() : [];
-    const goodFirstIssues = goodFirstRes.ok ? await goodFirstRes.json() : [];
-    const latestCommit = Array.isArray(commits) && commits[0] ? commits[0] : null;
-    const gfiCount = Array.isArray(goodFirstIssues) ? goodFirstIssues.length : 0;
-
-    chip.classList.remove('loading');
-    chip.innerHTML = `
-      <div class="live-repo-card-header">
-        <div class="live-repo-card-icon">
-          <i class="fa-brands fa-github" style="color:#fff;font-size:14px"></i>
-        </div>
-        <div style="flex:1;min-width:0">
-          <div class="live-repo-card-name">
-            <a href="${_esc(repo.html_url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">
-              ${_esc(repo.full_name || name)}
-            </a>
-          </div>
-          ${repo.description ? `<div style="font-size:11px;color:var(--text-muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(repo.description)}</div>` : ''}
-        </div>
-        ${repo.language ? `<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);flex-shrink:0">${langDot(repo.language)}<span>${_esc(repo.language)}</span></span>` : ''}
-      </div>
-      <div class="live-repo-card-stats">
-        <a class="live-repo-stat" href="${_esc(repo.html_url)}/stargazers" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Star on GitHub" style="text-decoration:none;color:inherit">
-          <i class="fa-regular fa-star" style="color:var(--amber)"></i>
-          ${fmtNum(repo.stargazers_count || 0)}
-        </a>
-        <a class="live-repo-stat" href="${_esc(repo.html_url)}/forks" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Fork on GitHub" style="text-decoration:none;color:inherit">
-          <i class="fa-solid fa-code-fork"></i>
-          ${fmtNum(repo.forks_count || 0)}
-        </a>
-        <span class="live-repo-stat" title="Watchers">
-          <i class="fa-regular fa-eye"></i>
-          ${fmtNum(repo.watchers_count || 0)}
-        </span>
-        ${gfiCount > 0 ? `<a class="live-repo-stat live-repo-gfi-badge" href="${_esc(repo.html_url)}/issues?q=is%3Aopen+label%3A%22good+first+issue%22" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${gfiCount} good first issue${gfiCount!==1?'s':''} — great for new contributors!" style="text-decoration:none"><i class="fa-solid fa-seedling" style="color:var(--emerald)"></i>${gfiCount} good first issue${gfiCount!==1?'s':''}</a>` : ''}
-      </div>
-      <div class="live-repo-card-footer">
-        <span class="live-repo-issues-badge">
-          <i class="fa-solid fa-circle-dot" style="font-size:9px"></i>
-          ${fmtNum(repo.open_issues_count || 0)} open issue${repo.open_issues_count !== 1 ? 's' : ''}
-        </span>
-        ${latestCommit ? `
-          <span class="live-repo-commit-tag">
-            <i class="fa-solid fa-code-commit" style="font-size:10px"></i>
-            <span style="font-family:var(--font-mono)">${(latestCommit.sha || '').slice(0, 7)}</span>
-            <span>· ${_timeAgo(latestCommit.commit?.author?.date || '')}</span>
-          </span>` : ''}
-      </div>
-      <div style="padding-top:8px;margin-top:8px;border-top:1px solid var(--border);display:flex;gap:6px">
-        <a href="${_esc(repo.html_url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="live-repo-action-btn" style="text-decoration:none"><i class="fa-brands fa-github" style="font-size:11px"></i> View Repo</a>
-        ${!repo.fork ? `<a href="${_esc(repo.html_url)}/fork" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="live-repo-action-btn live-repo-action-fork" style="text-decoration:none"><i class="fa-solid fa-code-fork" style="font-size:11px"></i> Fork</a>` : ''}
-        ${gfiCount > 0 ? `<a href="${_esc(repo.html_url)}/issues?q=is%3Aopen+label%3A%22good+first+issue%22" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="live-repo-action-btn live-repo-action-contribute" style="text-decoration:none"><i class="fa-solid fa-code-pull-request" style="font-size:11px"></i> Contribute</a>` : ''}
-      </div>`;
-
-    // Tooltip for latest commit message on hover of commit tag
-    if (latestCommit?.commit?.message) {
-      const commitTag = chip.querySelector('.live-repo-commit-tag');
-      if (commitTag) {
-        commitTag.title = latestCommit.commit.message.split('\n')[0].slice(0, 100);
-        commitTag.style.cursor = 'help';
-      }
-    }
-  } catch (_) {
-    // API failed — leave the fallback chip intact
-  }
-}
-
-// Patch buildPostCard to render enhanced Live Repo Cards
-(function patchBuildPostCardLiveRepo() {
-  if (window._liveRepoCardPatched) return;
-  window._liveRepoCardPatched = true;
-
-  const _origBuild = window.buildPostCard;
-  if (typeof _origBuild !== 'function') return;
-
-  window.buildPostCard = function(post, profile, isLiked, isBookmarked) {
-    const card = _origBuild.call(this, post, profile, isLiked, isBookmarked);
-
-    // Replace static gh-post-repo-chip with a Live Repo Card if github_repo present
-    if (post.github_repo) {
-      try {
-        const repoRaw = typeof post.github_repo === 'string'
-          ? JSON.parse(post.github_repo)
-          : post.github_repo;
-
-        // Remove any existing static chip injected by an earlier patch
-        card.querySelector('.gh-post-repo-chip')?.remove();
-
-        const liveCard = document.createElement('div');
-        liveCard.className = 'live-repo-card loading';
-
-        // Determine owner — stored in repo data or infer from profile
-        const owner = repoRaw.owner || profile?.github_username || profile?.username || null;
-        const repoName = repoRaw.name || '';
-        const repoUrl  = repoRaw.url  || (owner && repoName ? `https://github.com/${owner}/${repoName}` : '#');
-
-        // Skeleton / loading state
-        liveCard.innerHTML = `
-          <div class="live-repo-loading">
-            <i class="fa-brands fa-github" style="font-size:14px;color:var(--text-muted)"></i>
-            <span>${_esc(repoName || 'Loading repo…')}</span>
-            <i class="fa-solid fa-spinner fa-spin" style="font-size:11px;color:var(--text-muted);margin-left:auto"></i>
-          </div>`;
-
-        // Insert after post-content
-        const anchor = card.querySelector('.post-content, .post-image-wrap, .post-code') || card.querySelector('.post-actions');
-        if (anchor) anchor.parentElement?.insertBefore(liveCard, anchor.nextSibling);
-
-        // Hydrate asynchronously so it doesn't block card render
-        hydrateLiveRepoCard(liveCard, { owner, name: repoName, url: repoUrl });
-
-      } catch (_) { /* malformed github_repo JSON — skip */ }
-    }
-
-    return card;
-  };
-})();
-
-
-/* ── ② CODE SANDBOX EMBEDS ─────────────────────────────────────
-   • Adds a sandbox embed composer button
-   • Renders embedded sandbox chips on post cards
-   • Opens a full-screen iframe sandbox modal on click
-   ──────────────────────────────────────────────────────────── */
-
-/** Detect if a URL is a recognisable sandbox URL and return normalised embed URL */
-function _parseSandboxUrl(raw) {
-  try {
-    const u = new URL(raw.trim());
-    const host = u.hostname;
-
-    // CodeSandbox: https://codesandbox.io/s/<id>  or /embed/<id>
-    if (host === 'codesandbox.io') {
-      const id = u.pathname.replace(/^\/(s|embed|p)\//, '').split('/')[0];
-      if (id) return {
-        type: 'CodeSandbox',
-        embedUrl: `https://codesandbox.io/embed/${id}?fontsize=14&hidenavigation=0&theme=dark`,
-        openUrl: `https://codesandbox.io/s/${id}`,
-        label: `codesandbox.io/s/${id}`,
-      };
-    }
-
-    // StackBlitz: https://stackblitz.com/edit/<id>
-    if (host === 'stackblitz.com') {
-      const match = u.pathname.match(/\/edit\/([^/?]+)/);
-      if (match) return {
-        type: 'StackBlitz',
-        embedUrl: `https://stackblitz.com/edit/${match[1]}?embed=1&theme=dark`,
-        openUrl: raw.trim(),
-        label: `stackblitz.com/edit/${match[1]}`,
-      };
-    }
-
-    // CodePen: https://codepen.io/<user>/pen/<id>
-    if (host === 'codepen.io') {
-      const match = u.pathname.match(/\/([^/]+)\/pen\/([^/?]+)/);
-      if (match) return {
-        type: 'CodePen',
-        embedUrl: `https://codepen.io/${match[1]}/embed/${match[2]}?default-tab=html%2Cresult&theme-id=dark`,
-        openUrl: raw.trim(),
-        label: `codepen.io/${match[1]}/pen/${match[2]}`,
-      };
-    }
-  } catch (_) {}
-  return null;
-}
-
-/** Open the sandbox embed modal with a given embed/open URL */
-window.openSandboxModal = function(embedUrl, openUrl, label, sandboxType) {
-  const modal = document.getElementById('sandbox-embed-modal');
-  const body  = document.getElementById('sandbox-embed-body');
-  const title = document.getElementById('sandbox-embed-title');
-  const link  = document.getElementById('sandbox-embed-open-link');
-  const forkLink = document.getElementById('sandbox-embed-fork-link');
-  if (!modal || !body) return;
-
-  title.textContent = label || 'Code Sandbox';
-  if (link) { link.href = openUrl || embedUrl; }
-
-  // Build fork URL based on sandbox type
-  if (forkLink) {
-    let forkUrl = openUrl || embedUrl;
-    if (sandboxType === 'CodeSandbox') {
-      // CodeSandbox fork: just open the /s/ URL, user can click Fork in the UI
-      // Or use the fork param
-      forkUrl = (openUrl || embedUrl).replace('/embed/', '/s/') + '?file=/src/index.js';
-    } else if (sandboxType === 'StackBlitz') {
-      forkUrl = openUrl || embedUrl;
-    } else if (sandboxType === 'CodePen') {
-      forkUrl = (openUrl || '').replace('/pen/', '/pen/fork/');
-    }
-    forkLink.href = forkUrl;
-    forkLink.style.display = 'flex';
-  }
-
-  body.innerHTML = `<iframe src="${_esc(embedUrl)}" style="width:100%;height:100%;min-height:480px;border:none;display:block" loading="lazy" allow="accelerometer; camera; encrypted-media; geolocation; gyroscope; hid; microphone; midi; payment; usb; xr-spatial-tracking" sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"></iframe>`;
-  modal.style.display = 'flex';
-};
-
-// Patch buildPostCard to render sandbox embed chips
-(function patchBuildPostCardSandbox() {
-  if (window._sandboxCardPatched) return;
-  window._sandboxCardPatched = true;
-
-  const _origBuild = window.buildPostCard;
-  if (typeof _origBuild !== 'function') return;
-
-  window.buildPostCard = function(post, profile, isLiked, isBookmarked) {
-    const card = _origBuild.call(this, post, profile, isLiked, isBookmarked);
-
-    if (post.sandbox_url) {
-      const sandbox = _parseSandboxUrl(post.sandbox_url);
-      if (sandbox) {
-        const chip = document.createElement('div');
-        chip.className = 'sandbox-embed-chip';
-        chip.setAttribute('role', 'button');
-        chip.setAttribute('tabindex', '0');
-        chip.setAttribute('title', `Open in ${sandbox.type}`);
-        chip.innerHTML = `
-          <div class="sandbox-embed-chip-icon">
-            <i class="fa-solid fa-code" style="color:var(--emerald);font-size:12px"></i>
-          </div>
-          <span class="sandbox-embed-chip-label">${_esc(sandbox.label)}</span>
-          <span class="sandbox-embed-chip-badge">${_esc(sandbox.type)}</span>
-          <i class="fa-solid fa-play" style="font-size:10px;color:var(--text-muted);flex-shrink:0"></i>`;
-
-        chip.addEventListener('click', e => {
-          e.stopPropagation();
-          window.openSandboxModal(sandbox.embedUrl, sandbox.openUrl, sandbox.label, sandbox.type);
-        });
-        chip.addEventListener('keydown', e => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); chip.click(); }
-        });
-
-        const anchor = card.querySelector('.post-content, .live-repo-card') || card.querySelector('.post-actions');
-        if (anchor) anchor.parentElement?.insertBefore(chip, anchor.nextSibling);
-      }
-    }
-
-    return card;
-  };
-})();
-
-// Inject sandbox URL input into composer when GitHub repo button is used
-(function patchComposerSandbox() {
-  const obs = new MutationObserver(() => {
-    const toolbar = document.querySelector('.composer-toolbar');
-    if (toolbar && !toolbar.querySelector('#sandbox-embed-btn') && window.State?.user) {
-      const btn = document.createElement('button');
-      btn.id        = 'sandbox-embed-btn';
-      btn.className = 'composer-tool composer-sandbox-btn';
-      btn.title     = 'Embed a code sandbox';
-      btn.innerHTML = `<i class="fa-solid fa-code" style="font-size:13px"></i> Sandbox`;
-
-      const actions = toolbar.querySelector('.composer-actions');
-      if (actions) toolbar.insertBefore(btn, actions);
-
-      btn.addEventListener('click', () => _openSandboxUrlInput());
-    }
-  });
-  obs.observe(document.body, { childList: true, subtree: true });
-})();
-
-function _openSandboxUrlInput() {
-  const modal = document.getElementById('modal-overlay');
-  const body  = document.getElementById('modal-body');
-  if (!modal || !body) return;
-
-  document.getElementById('modal-title-text').textContent = '🧪 Embed Code Sandbox';
-  modal.classList.add('open');
-
-  body.innerHTML = `
-    <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
-      <div style="font-size:13px;color:var(--text-muted);line-height:1.6">
-        Paste a <strong style="color:var(--text-primary)">CodeSandbox</strong>,
-        <strong style="color:var(--text-primary)">StackBlitz</strong>, or
-        <strong style="color:var(--text-primary)">CodePen</strong> URL to embed an
-        interactive sandbox directly in your post.
-      </div>
-      <input id="sandbox-url-input" class="auth-input" type="url" placeholder="https://codesandbox.io/s/..." style="font-family:var(--font-mono);font-size:13px">
-      <div id="sandbox-url-preview" style="display:none;padding:10px 12px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--emerald)"></div>
-      <button class="auth-btn-primary" id="sandbox-url-confirm">
-        <i class="fa-solid fa-check"></i> Attach Sandbox
-      </button>
-    </div>`;
-
-  const input   = document.getElementById('sandbox-url-input');
-  const preview = document.getElementById('sandbox-url-preview');
-
-  input.addEventListener('input', () => {
-    const parsed = _parseSandboxUrl(input.value);
-    if (parsed) {
-      preview.style.display = 'block';
-      preview.innerHTML = `<i class="fa-solid fa-circle-check" style="margin-right:6px"></i>Detected <strong>${_esc(parsed.type)}</strong> — ${_esc(parsed.label)}`;
-    } else {
-      preview.style.display = 'none';
-    }
-  });
-
-  document.getElementById('sandbox-url-confirm').addEventListener('click', () => {
-    const parsed = _parseSandboxUrl(input.value);
-    if (!parsed) { toast('Paste a valid CodeSandbox, StackBlitz or CodePen URL', 'circle-exclamation'); return; }
-    // Store the sandbox URL on the window for the submit handler to pick up
-    window._pendingSandboxUrl = input.value.trim();
-    modal.classList.remove('open');
-    toast(`${parsed.type} sandbox attached!`, 'code');
-  });
-}
-
-
-/* ── ③ AUTOMATED SHIP POSTS (GitHub Webhooks) ───────────────────
-   • Webhook endpoint URL generation (per-user secret)
-   • In-app setup guide accessible from composer & settings
-   • Auto-post rendering: release chip + ship badge on card
-   ──────────────────────────────────────────────────────────── */
-
-/**
- * Return this user's unique Devit webhook URL.
- * Real webhook processing happens server-side (Supabase Edge Function).
- * This function surfaces the URL for the user to configure in GitHub.
- */
-function getWebhookUrl(userId) {
-  const base = window.DEVIT_CONFIG?.SUPABASE_URL?.replace('/rest/v1', '') || 'https://your-project.supabase.co';
-  return `${base}/functions/v1/gh-webhook?uid=${encodeURIComponent(userId || '')}`;
-}
-
-/** Open the GitHub Webhook setup guide modal */
-window.openWebhookSetupModal = function() {
-  const modal = document.getElementById('gh-webhook-modal');
-  const body  = document.getElementById('gh-webhook-modal-body');
-  if (!modal || !body) return;
-
-  const userId     = window.State?.user?.id || '';
-  const webhookUrl = getWebhookUrl(userId);
-
-  body.innerHTML = `
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.6">
-      When you push a new GitHub release or merge a PR that bumps a version tag,
-      Devit will automatically create a <span style="color:var(--cyan);font-weight:600">Ship Post</span> on your feed.
-    </div>
-
-    <div class="webhook-step">
-      <div class="webhook-step-num">1</div>
-      <div class="webhook-step-body">
-        <div class="webhook-step-title">Go to your GitHub repo Settings → Webhooks</div>
-        <div class="webhook-step-desc">Open the repository you want to connect, then navigate to <em>Settings → Webhooks → Add webhook</em>.</div>
-      </div>
-    </div>
-
-    <div class="webhook-step">
-      <div class="webhook-step-num">2</div>
-      <div class="webhook-step-body">
-        <div class="webhook-step-title">Set Payload URL to your Devit endpoint</div>
-        <div class="webhook-url-copy">
-          <code id="wh-url-text">${_esc(webhookUrl)}</code>
-          <button class="webhook-copy-btn" id="wh-copy-btn">
-            <i class="fa-regular fa-copy"></i> Copy
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="webhook-step">
-      <div class="webhook-step-num">3</div>
-      <div class="webhook-step-body">
-        <div class="webhook-step-title">Select these events</div>
-        <div class="webhook-step-desc">Choose <em>Let me select individual events</em> and enable:</div>
-        <div class="webhook-events-list">
-          <span class="webhook-event-tag">release</span>
-          <span class="webhook-event-tag">pull_request</span>
-          <span class="webhook-event-tag">push</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="webhook-step">
-      <div class="webhook-step-num">4</div>
-      <div class="webhook-step-body">
-        <div class="webhook-step-title">Set Content-Type to <code style="font-size:11px;color:var(--text-code)">application/json</code> and click Add webhook</div>
-        <div class="webhook-step-desc">Devit will now automatically post when you ship a new release or merge a versioned PR. 🚀</div>
-      </div>
-    </div>
-
-    <div style="margin-top:16px;padding:12px 14px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.2);border-radius:10px;font-size:12px;color:var(--emerald);line-height:1.6">
-      <i class="fa-solid fa-circle-info" style="margin-right:6px"></i>
-      Ship Posts are automatically tagged and appear in the feed with a release chip showing the version tag, repo name, and a direct link to the GitHub release.
-    </div>
-
-    <div style="margin-top:14px;padding:12px 14px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.2);border-radius:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="font-size:13px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:7px"><i class="fa-solid fa-file-pen" style="color:var(--violet)"></i> Draft Mode</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:3px;line-height:1.5">Save auto-ship posts as drafts for review before publishing.</div>
-        </div>
-        <label class="draft-toggle-wrap" style="position:relative;display:inline-flex;align-items:center;cursor:pointer;gap:8px;flex-shrink:0">
-          <input type="checkbox" id="webhook-draft-mode" style="opacity:0;width:0;height:0;position:absolute" ${localStorage.getItem('devit-webhook-draft') === '1' ? 'checked' : ''}>
-          <span class="draft-toggle-track" style="width:36px;height:20px;border-radius:20px;background:${localStorage.getItem('devit-webhook-draft') === '1' ? 'var(--violet)' : 'var(--bg-float)'};display:inline-block;position:relative;transition:background 0.2s"><span class="draft-toggle-thumb" style="position:absolute;top:3px;left:${localStorage.getItem('devit-webhook-draft') === '1' ? '19' : '3'}px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 0.2s"></span></span>
-        </label>
-      </div>
-      <div id="draft-mode-hint" style="display:${localStorage.getItem('devit-webhook-draft') === '1' ? 'block' : 'none'};margin-top:8px;font-size:11px;color:var(--violet);line-height:1.5"><i class="fa-solid fa-info-circle" style="margin-right:4px"></i>Auto-ship posts will be saved to Drafts. Review them in <strong>Profile → Drafts</strong> tab before publishing.</div>
-    </div>`;
-
-  // Copy button
-  document.getElementById('wh-copy-btn')?.addEventListener('click', () => {
-    navigator.clipboard?.writeText(webhookUrl).then(() => {
-      const btn = document.getElementById('wh-copy-btn');
-      if (btn) { btn.innerHTML = '<i class="fa-solid fa-check" style="color:var(--emerald)"></i> Copied!'; }
-      setTimeout(() => {
-        const btn2 = document.getElementById('wh-copy-btn');
-        if (btn2) btn2.innerHTML = '<i class="fa-regular fa-copy"></i> Copy';
-      }, 2000);
-    });
-  });
-
-  // Draft mode toggle
-  const draftToggle = document.getElementById('webhook-draft-mode');
-  if (draftToggle) {
-    draftToggle.addEventListener('change', () => {
-      const on = draftToggle.checked;
-      localStorage.setItem('devit-webhook-draft', on ? '1' : '0');
-      const track = draftToggle.closest('label')?.querySelector('.draft-toggle-track');
-      const thumb = draftToggle.closest('label')?.querySelector('.draft-toggle-thumb');
-      if (track) track.style.background = on ? 'var(--violet)' : 'var(--bg-float)';
-      if (thumb) thumb.style.left = on ? '19px' : '3px';
-      const hint = document.getElementById('draft-mode-hint');
-      if (hint) hint.style.display = on ? 'block' : 'none';
-      toast(on ? 'Draft mode enabled — auto-ship posts will need review' : 'Draft mode off — auto-ship posts publish immediately', on ? 'file-pen' : 'rocket');
-    });
-  }
-
-  modal.style.display = 'flex';
-};
-
-// Render release chip on auto-ship post cards
-(function patchBuildPostCardShip() {
-  if (window._shipCardPatched) return;
-  window._shipCardPatched = true;
-
-  const _origBuild = window.buildPostCard;
-  if (typeof _origBuild !== 'function') return;
-
-  window.buildPostCard = function(post, profile, isLiked, isBookmarked) {
-    const card = _origBuild.call(this, post, profile, isLiked, isBookmarked);
-
-    if (post.is_ship_post || post.gh_release) {
-      // Add ship badge below avatar/header area
-      const header = card.querySelector('.post-header, .post-meta');
-      if (header) {
-        const badge = document.createElement('div');
-        badge.className = 'ship-post-badge';
-        badge.innerHTML = `<i class="fa-solid fa-rocket"></i> Auto Ship Post`;
-        header.parentElement?.insertBefore(badge, header.nextSibling);
-      }
-
-      // Render release chip if release metadata present
-      if (post.gh_release) {
-        try {
-          const rel = typeof post.gh_release === 'string' ? JSON.parse(post.gh_release) : post.gh_release;
-          const chip = document.createElement('div');
-          chip.className = 'gh-release-chip';
-          chip.innerHTML = `
-            <i class="fa-brands fa-github" style="font-size:13px;color:var(--text-muted);flex-shrink:0"></i>
-            <span class="gh-release-chip-tag">${_esc(rel.tag || 'v?')}</span>
-            <span class="gh-release-chip-name">${_esc(rel.name || rel.repo || '')}</span>
-            ${rel.url ? `<a href="${_esc(rel.url)}" target="_blank" rel="noopener noreferrer"
-               class="gh-release-chip-link" onclick="event.stopPropagation()">
-              View release <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:9px"></i>
-            </a>` : ''}`;
-
-          const anchor = card.querySelector('.post-content, .live-repo-card, .sandbox-embed-chip') || card.querySelector('.post-actions');
-          if (anchor) anchor.parentElement?.insertBefore(chip, anchor.nextSibling);
-        } catch (_) {}
-      }
-    }
-
-    return card;
-  };
-})();
-
-// Patch submitPost to attach sandbox URL if pending
-(function patchSubmitPostSandbox() {
-  if (window._sandboxSubmitPatched) return;
-  window._sandboxSubmitPatched = true;
-
-  document.addEventListener('click', e => {
-    const submitBtn = e.target.closest('#composer-submit, .composer-submit, [data-action="submit-post"]');
-    if (!submitBtn || !window._pendingSandboxUrl) return;
-    // Stash it so submitPost can read it
-    window._activeSandboxUrl = window._pendingSandboxUrl;
-    window._pendingSandboxUrl = null;
-    setTimeout(() => { window._activeSandboxUrl = null; }, 2000);
-  }, true);
-})();
-
-// Expose webhook setup button in composer toolbar
-(function injectWebhookComposerBtn() {
-  const obs = new MutationObserver(() => {
-    const toolbar = document.querySelector('.composer-toolbar');
-    if (toolbar && !toolbar.querySelector('#webhook-setup-btn') && window.State?.profile?.is_github) {
-      const btn = document.createElement('button');
-      btn.id        = 'webhook-setup-btn';
-      btn.className = 'composer-tool';
-      btn.title     = 'Set up Auto Ship Posts (GitHub Webhook)';
-      btn.innerHTML = `<i class="fa-solid fa-rocket" style="font-size:13px;color:var(--violet)"></i>`;
-      const actions = toolbar.querySelector('.composer-actions');
-      if (actions) toolbar.insertBefore(btn, actions);
-      btn.addEventListener('click', () => window.openWebhookSetupModal());
-    }
-  });
-  obs.observe(document.body, { childList: true, subtree: true });
-})();
-
-
-/* ── ④ GITHUB-NATIVE IDENTITY ENRICHMENT ───────────────────────
-   Pull public GitHub activity (contributions, starred repos,
-   language breakdown) into rightbar and profile widgets.
-   ──────────────────────────────────────────────────────────── */
-
-/**
- * Build the GitHub identity widget shown in the rightbar (for own profile)
- * or in the profile sidebar when viewing another GitHub user.
- */
-async function renderGHIdentityWidget(container, profile) {
-  const username = getGHUsername(profile);
-  if (!username || !profile?.is_github) return;
-
-  const widget = document.createElement('div');
-  widget.className = 'gh-identity-widget';
-  widget.innerHTML = `
-    <div class="gh-identity-widget-header">
-      <div class="gh-identity-title">
-        <i class="fa-brands fa-github" style="font-size:13px"></i>
-        GitHub Activity
-      </div>
-      <a href="https://github.com/${encodeURIComponent(username)}" target="_blank" rel="noopener noreferrer"
-         style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px;text-decoration:none">
-        @${_esc(username)} <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:9px"></i>
-      </a>
-    </div>
-    <div id="gh-identity-rows" style="display:flex;flex-direction:column">
-      <div class="gh-activity-row">
-        <div class="gh-activity-icon"><i class="fa-solid fa-spinner fa-spin" style="font-size:10px"></i></div>
-        <div class="gh-activity-label" style="color:var(--text-muted)">Loading GitHub data…</div>
-      </div>
-    </div>`;
-
-  container.appendChild(widget);
-
-  try {
-    const token = await getGHToken();
-    const [ghUser, repos, events] = await Promise.all([
-      ghFetch(`/users/${encodeURIComponent(username)}`, token),
-      fetchGHRepos(username, token).catch(() => []),
-      ghFetch(`/users/${encodeURIComponent(username)}/events/public?per_page=30`, token).catch(() => []),
-    ]);
-
-    if (!ghUser) {
-      widget.querySelector('#gh-identity-rows').innerHTML = `
-        <div class="gh-activity-row"><div class="gh-activity-label" style="color:var(--text-muted)">Could not load GitHub data</div></div>`;
-      return;
-    }
-
-    // Compute language breakdown
-    const langCounts = {};
-    (Array.isArray(repos) ? repos : []).forEach(r => {
-      if (r.language) langCounts[r.language] = (langCounts[r.language] || 0) + 1;
-    });
-    const topLang = Object.entries(langCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || null;
-
-    // Recent push count (last 30 public events)
-    const pushes = Array.isArray(events) ? events.filter(e => e.type === 'PushEvent').length : 0;
-
-    // Total stars across repos
-    const totalStars = (Array.isArray(repos) ? repos : []).reduce((s, r) => s + (r.stargazers_count || 0), 0);
-
-    const rows = [
-      { icon: 'fa-solid fa-code-branch', label: 'Public repos', value: fmtNum(ghUser.public_repos || 0), color: 'var(--cyan)' },
-      { icon: 'fa-regular fa-star',       label: 'Total stars',  value: fmtNum(totalStars),              color: 'var(--amber)' },
-      { icon: 'fa-solid fa-users',         label: 'Followers',    value: fmtNum(ghUser.followers || 0),  color: 'var(--violet)' },
-      { icon: 'fa-solid fa-paper-plane',   label: 'Recent pushes', value: `${pushes} / 30 events`,      color: 'var(--emerald)' },
-      ...(topLang ? [{ icon: 'fa-solid fa-circle', label: 'Top language', value: topLang, color: LANG_COLORS[topLang] || '#8b92b8' }] : []),
-    ];
-
-    widget.querySelector('#gh-identity-rows').innerHTML = rows.map(r => `
-      <div class="gh-activity-row">
-        <div class="gh-activity-icon"><i class="${r.icon}" style="color:${r.color};font-size:11px"></i></div>
-        <div class="gh-activity-label">${_esc(r.label)}</div>
-        <div class="gh-activity-value">${_esc(String(r.value))}</div>
-      </div>`).join('');
-
-    // Add starred repos section if available
-    const starred = await ghFetch(`/users/${encodeURIComponent(username)}/starred?per_page=3`, token).catch(() => []);
-    if (Array.isArray(starred) && starred.length) {
-      const starredEl = document.createElement('div');
-      starredEl.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid var(--border)';
-      starredEl.innerHTML = `
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">Recently Starred</div>
-        ${starred.slice(0, 3).map(r => `
-          <div class="gh-activity-row" style="padding:5px 0">
-            <div class="gh-activity-icon"><i class="fa-regular fa-star" style="color:var(--amber);font-size:11px"></i></div>
-            <div class="gh-activity-label">
-              <a href="${_esc(r.html_url)}" target="_blank" rel="noopener noreferrer"
-                 style="color:var(--text-secondary);text-decoration:none;font-size:12px"
-                 onmouseover="this.style.color='var(--cyan)'" onmouseout="this.style.color='var(--text-secondary)'">
-                ${_esc(r.full_name)}
-              </a>
-            </div>
-          </div>`).join('')}`;
-      widget.appendChild(starredEl);
-    }
-
-  } catch (e) {
-    console.warn('[Devit GH Identity]', e);
-  }
-}
-
-// Inject GH identity widget into rightbar when viewing own profile or any GitHub user
-(function injectGHIdentityInRightbar() {
-  const obs = new MutationObserver(() => {
-    const rightbar = document.getElementById('rightbar');
-    if (!rightbar || rightbar.querySelector('.gh-identity-widget')) return;
-
-    const profile = window.State?.profile;
-    if (!profile?.is_github) return;
-
-    // Only inject once; append after first existing widget
-    renderGHIdentityWidget(rightbar, profile);
-  });
-  obs.observe(document.body, { childList: true, subtree: true });
-})();
-
-// Expose webhook setup from settings view
-window.devitOpenWebhookSetup = window.openWebhookSetupModal;
-
-/* ══════════════════════════════════════════════════════════════
-   FEATURE: LOOKING FOR COLLABORATORS
-   Adds a collab toggle to the composer and shows a badge on posts
-   that have collab_tags set (co-founder, contributor, beta-tester).
-   ══════════════════════════════════════════════════════════════ */
-
-const COLLAB_TYPES = [
-  { id: 'co-founder',  label: 'Co-founder',  icon: '🚀', color: 'var(--cyan)' },
-  { id: 'contributor', label: 'Contributor', icon: '⚙️', color: 'var(--emerald)' },
-  { id: 'beta-tester', label: 'Beta Tester', icon: '🧪', color: 'var(--violet)' },
-];
-
-// Stores active collab selection in composer
-window._pendingCollabTags = null;
-
-function injectCollabButtonIntoComposer() {
-  const toolbar = document.querySelector('.composer-toolbar');
-  if (!toolbar || document.getElementById('collab-toggle-btn')) return;
-
-  const btn = document.createElement('button');
-  btn.id = 'collab-toggle-btn';
-  btn.title = 'Looking for collaborators?';
-  btn.className = 'composer-tool';
-  btn.innerHTML = '<i class="fa-solid fa-people-group" style="font-size:13px"></i>';
-
-  const actions = toolbar.querySelector('.composer-actions');
-  if (actions) toolbar.insertBefore(btn, actions);
-
-  // Collab tag selector bubble
-  let bubble = null;
-  let activeCollab = null;
-
-  btn.addEventListener('click', e => {
-    e.preventDefault(); e.stopPropagation();
-    if (bubble) { bubble.remove(); bubble = null; return; }
-
-    toolbar.style.position = 'relative';
-    bubble = document.createElement('div');
-    bubble.className = 'collab-picker-bubble';
-    const btnRect = btn.getBoundingClientRect();
-    const toolbarRect = toolbar.getBoundingClientRect();
-    bubble.style.cssText = `position:absolute;bottom:calc(100% + 8px);left:${btnRect.left - toolbarRect.left}px;z-index:999;min-width:180px`;
-    bubble.innerHTML = `
-      <div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Looking for…</div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${COLLAB_TYPES.map(t => `
-          <button class="collab-type-btn" data-type="${t.id}" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;text-align:left;transition:all 0.15s">
-            <span>${t.icon}</span><span>${t.label}</span>
-          </button>`).join('')}
-        ${activeCollab ? `<button id="collab-clear-btn" style="font-size:11px;color:var(--rose);background:none;border:none;cursor:pointer;padding:4px 0;text-align:center">✕ Remove collab tag</button>` : ''}
-      </div>`;
-
-    toolbar.appendChild(bubble);
-
-    bubble.querySelectorAll('.collab-type-btn').forEach(b => {
-      if (b.dataset.type === activeCollab) { b.style.borderColor='var(--cyan)'; b.style.color='var(--cyan)'; b.style.background='var(--cyan-dim)'; }
-      b.addEventListener('click', () => {
-        activeCollab = b.dataset.type;
-        window._pendingCollabTags = [activeCollab];
-        btn.style.color = 'var(--emerald)';
-        btn.style.background = 'rgba(62,207,142,0.12)';
-        btn.title = `Collab: ${activeCollab}`;
-        bubble.remove(); bubble = null;
-        toast(`Collab tag: ${activeCollab}`, 'people-group');
-      });
-    });
-
-    bubble.querySelector('#collab-clear-btn')?.addEventListener('click', () => {
-      activeCollab = null; window._pendingCollabTags = null;
-      btn.style.color = ''; btn.style.background = ''; btn.title = 'Looking for collaborators?';
-      bubble.remove(); bubble = null;
-    });
-
-    setTimeout(() => document.addEventListener('click', function onOutside(ev) {
-      if (!toolbar.contains(ev.target)) { bubble?.remove(); bubble = null; document.removeEventListener('click', onOutside); }
-    }), 100);
-  });
-}
-
-// Patch buildPostCard to inject collab badge when post.collab_tags is set
-(function patchBuildPostCardCollab() {
-  if (window._collabCardPatched) return;
-  window._collabCardPatched = true;
-
-  const _orig = window.buildPostCard;
-  if (typeof _orig !== 'function') return;
-
-  window.buildPostCard = function(post, ...rest) {
-    const card = _orig.call(this, post, ...rest);
-    if (post.collab_tags?.length && card) {
-      const types = Array.isArray(post.collab_tags) ? post.collab_tags : [post.collab_tags];
-      const badges = types.map(t => {
-        const def = COLLAB_TYPES.find(d => d.id === t) || { icon: '🤝', label: t, color: 'var(--emerald)' };
-        return `<span class="collab-post-badge" style="color:${def.color};border-color:${def.color}20;background:${def.color}10">${def.icon} ${def.label}</span>`;
-      }).join('');
-      const collab_el = document.createElement('div');
-      collab_el.className = 'collab-badge-row';
-      collab_el.innerHTML = `<i class="fa-solid fa-people-group" style="font-size:10px;color:var(--text-muted)"></i> <span style="font-size:10px;color:var(--text-muted);font-weight:600">Seeking:</span> ${badges}`;
-      const actions = card.querySelector('.post-actions');
-      if (actions) card.insertBefore(collab_el, actions);
-    }
-    return card;
-  };
-})();
-
-// Inject collab_tags into post insert payload
-(function patchPostSubmitCollab() {
-  if (window._collabSubmitPatched) return;
-  window._collabSubmitPatched = true;
-
-  document.addEventListener('click', e => {
-    const submitBtn = e.target.closest('#post-submit-btn');
-    if (!submitBtn) return;
-    // _pendingCollabTags will be read by the normal submit handler which already looks at window._pending*
-  }, true);
-})();
-
-// MutationObserver to auto-inject collab button whenever composer renders
-(function observeComposerForCollab() {
-  const obs = new MutationObserver(() => {
-    const toolbar = document.querySelector('.composer-toolbar');
-    if (toolbar && !toolbar.querySelector('#collab-toggle-btn') && window.State?.user) {
-      injectCollabButtonIntoComposer();
-    }
-  });
-  obs.observe(document.body, { childList: true, subtree: true });
-})();
-
-console.log('[Devit 3.1 GitHub] ✓ Live Repo Cards, Code Sandbox, Auto Ship Posts, GH Identity loaded');
-
-function openOwnPostMenu(anchor, post, profile, card) {
-  // Remove any existing menu
-  document.querySelector('.post-ctx-menu')?.remove();
-  document.querySelector('.post-ctx-backdrop')?.classList.remove('open');
-
-  const rect = anchor.getBoundingClientRect();
-  const menu = document.createElement('div');
-  menu.className = 'post-ctx-menu';
-  menu.setAttribute('role', 'menu');
-  menu.style.cssText = `
-    top: ${Math.min(rect.bottom + 4, window.innerHeight - 180)}px;
-    right: ${window.innerWidth - rect.right}px;
-  `;
-
-  menu.innerHTML = `
-    <button class="post-ctx-item" id="ctx-pin" role="menuitem">
-      <i class="fa-solid fa-thumbtack" style="color:var(--amber)"></i> <span id="ctx-pin-label">Pin to profile</span>
-    </button>
-    <button class="post-ctx-item" id="ctx-edit" role="menuitem">
-      <i class="fa-solid fa-pen-to-square" style="color:var(--cyan)"></i> Edit post
-    </button>
-    <button class="post-ctx-item" id="ctx-copy-link" role="menuitem">
-      <i class="fa-solid fa-link" style="color:var(--violet)"></i> Copy link
-    </button>
-    <div style="height:1px;background:rgba(255,255,255,0.07);margin:4px 8px"></div>
-    <button class="post-ctx-item danger" id="ctx-delete" role="menuitem">
-      <i class="fa-solid fa-trash-can"></i> Delete post
-    </button>
-  `;
-
-  document.body.appendChild(menu);
-  let backdrop = document.querySelector('.post-ctx-backdrop'); if (!backdrop) { backdrop = document.createElement('div'); backdrop.className = 'post-ctx-backdrop'; backdrop.style.cssText = 'position:fixed;inset:0;z-index:499'; document.body.appendChild(backdrop); }
-  backdrop.style.display = 'block';
-
-  function closeMenu() {
-    menu.remove();
-    backdrop.style.display = 'none';
-  }
-
-  backdrop.onclick = closeMenu;
-
-  // Pin / Unpin
-  if (typeof getPinnedPosts === 'function') {
-    getPinnedPosts(window.State?.user?.id).then(pinnedIds => {
-      const isPinned = pinnedIds.includes(post.id);
-      const pinLabel = menu.querySelector('#ctx-pin-label');
-      if (pinLabel) pinLabel.textContent = isPinned ? 'Unpin from profile' : 'Pin to profile';
-      menu.querySelector('#ctx-pin').onclick = () => {
-        closeMenu();
-        if (isPinned) unpinPost(post.id);
-        else pinPost(post.id);
-      };
-    });
-  } else {
-    menu.querySelector('#ctx-pin').onclick = () => closeMenu();
-  }
-
-  menu.querySelector('#ctx-edit').onclick = () => {
-    closeMenu();
-    openInlineEditor(post, card);
-  };
-
-  menu.querySelector('#ctx-copy-link').onclick = () => {
-    closeMenu();
-    navigator.clipboard?.writeText(window.location.origin + '/post/' + post.id)
-      .then(() => typeof toast === 'function' && toast('Link copied!', 'link'));
-  };
-
-  menu.querySelector('#ctx-delete').onclick = async () => {
-    closeMenu();
-    if (!confirm('Delete this post? This cannot be undone.')) return;
-    const { error } = await sb.from('op_posts').delete().eq('id', post.id);
-    if (error) {
-      typeof toast === 'function' && toast('Failed to delete: ' + error.message, 'circle-exclamation');
-    } else {
-      card.style.opacity = '0';
-      card.style.transform = 'scale(0.95)';
-      card.style.transition = '0.3s ease';
-      setTimeout(() => card.remove(), 300);
-      typeof toast === 'function' && toast('Post deleted', 'trash');
-    }
-  };
-}
-
-/* ── Inline editor ────────────────────────────────────────── */
-function openInlineEditor(post, card) {
-  const contentEl = card.querySelector('.post-content');
-  if (!contentEl) return;
-
-  const originalHtml = contentEl.innerHTML;
-  const originalText = post.content || '';
-
-  const editor = document.createElement('div');
-  editor.className = 'post-edit-area';
-  editor.innerHTML = `
-    <textarea class="post-edit-textarea" aria-label="Edit post content">${originalText}</textarea>
-    <div class="post-edit-actions">
-      <button class="post-edit-cancel">Cancel</button>
-      <button class="post-edit-save"><i class="fa-solid fa-check"></i> Save</button>
-    </div>
-  `;
-
-  contentEl.replaceWith(editor);
-  editor.querySelector('textarea').focus();
-
-  editor.querySelector('.post-edit-cancel').onclick = () => {
-    editor.replaceWith(contentEl);
-  };
-
-  editor.querySelector('.post-edit-save').onclick = async () => {
-    const newText = editor.querySelector('textarea').value.trim();
-    if (!newText) { typeof toast === 'function' && toast('Post cannot be empty', 'circle-exclamation'); return; }
-    if (newText === originalText) { editor.replaceWith(contentEl); return; }
-
-    const saveBtn = editor.querySelector('.post-edit-save');
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-
-    const { error } = await window.sb?.from('op_posts')
-      .update({ content: newText })
-      .eq('id', post.id)
-      .eq('author_id', window.State?.user?.id);
-
-    if (error) {
-      saveBtn.disabled = false;
-      saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save';
-      typeof toast === 'function' && toast('Failed to save: ' + error.message, 'circle-exclamation');
-      return;
-    }
-
-    post.content = newText; // update in-memory reference
-    const newContentEl = document.createElement('div');
-    newContentEl.className = 'post-content';
-    newContentEl.innerHTML = window.escapeHtml
-      ? window.escapeHtml(newText).replace(/#(\w+)/g,'<span class="hashtag" data-tag="$1">#$1</span>').replace(/@(\w+)/g,'<span class="mention">@$1</span>')
-      : newText;
-
-    // Re-bind hashtag clicks
-    newContentEl.querySelectorAll('.hashtag[data-tag]').forEach(span => {
-      span.addEventListener('click', e => { e.stopPropagation(); navigateToTag(span.dataset.tag); });
-    });
-
-    // Add edited tag
-    const editedTag = document.createElement('span');
-    editedTag.className = 'post-edited-tag';
-    editedTag.textContent = '(edited)';
-    newContentEl.appendChild(editedTag);
-
-    editor.replaceWith(newContentEl);
-    typeof toast === 'function' && toast('Post updated!', 'pen-to-square');
-  };
-}
 
 
 /* ══════════════════════════════════════════════════════════════

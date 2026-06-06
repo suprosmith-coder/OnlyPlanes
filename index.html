@@ -11,7 +11,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Planebook">
+  <meta name="apple-mobile-web-app-title" content="OnlyPlanes">
   <link rel="apple-touch-icon" href="devit.png">
   <link rel="apple-touch-icon" sizes="152x152" href="devit.png">
   <link rel="apple-touch-icon" sizes="180x180" href="devit.png">
@@ -22,7 +22,7 @@
 
   <meta name="robots" content="index, follow">
   <meta name="keywords" content="aviation social network, flight logs, planespotting, aircraft community, aviator platform">
-  <meta name="author" content="Planebook">
+  <meta name="author" content="OnlyPlanes">
   <link rel="canonical" href="https://only-planesavgeek.vercel.app/">
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,30 +30,30 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap">
 
   <!-- Open Graph -->
-  <meta property="og:title" content="Planebook — Log. Spot. Soar.">
+  <meta property="og:title" content="OnlyPlanes — Log. Spot. Soar.">
   <meta property="og:description" content="The social platform built for aviation enthusiasts. Share flight logs, spot aircraft, and connect with fellow aviators.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://only-planesavgeek.vercel.app/">
   <meta property="og:image" content="https://only-planesavgeek.vercel.app/devit.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Planebook — The aviation social platform">
-  <meta property="og:site_name" content="Planebook">
+  <meta property="og:image:alt" content="OnlyPlanes — The aviation social platform">
+  <meta property="og:site_name" content="OnlyPlanes">
   <meta property="og:locale" content="en_US">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Planebook — Log. Spot. Soar.">
+  <meta name="twitter:title" content="OnlyPlanes — Log. Spot. Soar.">
   <meta name="twitter:description" content="The social platform built for aviation enthusiasts.">
   <meta name="twitter:image" content="https://only-planesavgeek.vercel.app/devit.png">
-  <meta name="twitter:image:alt" content="Planebook — The aviation social platform">
+  <meta name="twitter:image:alt" content="OnlyPlanes — The aviation social platform">
 
   <!-- Structured Data -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "name": "Planebook",
+    "name": "OnlyPlanes",
     "description": "The social platform built for aviation enthusiasts. Share flight logs, spot aircraft, and connect with fellow aviators.",
     "url": "https://only-planesavgeek.vercel.app/",
     "applicationCategory": "SocialNetworkingApplication",
@@ -68,7 +68,7 @@
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
   <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
-  <title>Planebook — Log. Spot. Soar.</title>
+  <title>OnlyPlanes — Log. Spot. Soar.</title>
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="devit.png" type="image/png">
   <!-- Font Awesome 6 -->
@@ -83,7 +83,7 @@
     <div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;text-align:center;padding:20px">
       <div>
         <h2 style="margin-bottom:8px">JavaScript required</h2>
-        <p style="color:#888">Planebook requires JavaScript to run. Please enable it in your browser settings.</p>
+        <p style="color:#888">OnlyPlanes requires JavaScript to run. Please enable it in your browser settings.</p>
       </div>
     </div>
   </noscript>
@@ -102,8 +102,8 @@
     <!-- Left panel – branding/feature highlights + public trending preview -->
     <div class="auth-panel-left">
       <div class="auth-panel-brand">
-        <img src="devit.png" alt="Planebook" class="auth-panel-logo">
-        <span class="auth-panel-name">Planebook</span>
+        <img src="devit.png" alt="OnlyPlanes" class="auth-panel-logo">
+        <span class="auth-panel-name">OnlyPlanes</span>
       </div>
       <h2 class="auth-panel-headline">Where aviators<br>log &amp; connect.</h2>
       <p class="auth-panel-desc">Share your flights. Spot aircraft worldwide. Connect with pilots, spotters, and enthusiasts who live and breathe aviation.</p>
@@ -133,7 +133,7 @@
     <div class="auth-card">
       <div class="auth-card-center">
         <div class="auth-card-logo">
-          <img src="devit.png" alt="Planebook" style="width:56px;height:56px;border-radius:16px;object-fit:cover;">
+          <img src="devit.png" alt="OnlyPlanes" style="width:56px;height:56px;border-radius:16px;object-fit:cover;">
         </div>
         <h2 class="auth-card-title">Welcome to OnlyPlanes</h2>
         <p class="auth-card-sub">Sign in with your Discord account to join the fleet.</p>
@@ -145,10 +145,21 @@
           <span>Continue with Discord</span>
         </button>
 
+        <div style="display:flex;align-items:center;gap:12px;margin:12px 0 4px">
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <span style="font-size:11px;color:var(--text-muted);white-space:nowrap">or</span>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+
+        <button id="guest-browse-btn" style="width:100%;padding:12px 20px;border-radius:12px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-secondary);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.2s;font-family:var(--font-body,sans-serif)" onmouseover="this.style.borderColor='rgba(255,45,110,0.4)';this.style.color='var(--text-primary)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+          <i class="fa-solid fa-eye" style="font-size:14px"></i>
+          <span>Browse as Guest</span>
+        </button>
+
         <div id="auth-status" style="display:none;margin-top:16px;padding:10px 14px;border-radius:10px;background:var(--bg-elevated);font-size:13px;color:var(--text-secondary);text-align:center;border:1px solid var(--border);line-height:1.5"></div>
 
         <div class="auth-footer">
-          By continuing you agree to Planebook's <a href="#" rel="noopener">Terms</a> and <a href="#" rel="noopener">Privacy Policy</a>
+          By continuing you agree to OnlyPlanes's <a href="#" rel="noopener">Terms</a> and <a href="#" rel="noopener">Privacy Policy</a>
         </div>
       </div>
     </div>
@@ -538,242 +549,4 @@
       setTimeout(() => r.remove(), 500);
     });
 
-    // Auth tab switcher
-    const tabSI = document.getElementById('tab-signin');
-    const tabSU = document.getElementById('tab-signup');
-    const formSI = document.getElementById('form-signin');
-    const formSU = document.getElementById('form-signup');
-
-    tabSI.addEventListener('click', () => {
-      tabSI.classList.add('active'); tabSU.classList.remove('active');
-      formSI.style.display = ''; formSU.style.display = 'none';
-      document.getElementById('auth-status').style.display = 'none';
-    });
-    tabSU.addEventListener('click', () => {
-      tabSU.classList.add('active'); tabSI.classList.remove('active');
-      formSU.style.display = ''; formSI.style.display = 'none';
-      document.getElementById('auth-status').style.display = 'none';
-    });
-
-    // Password visibility toggles
-    document.querySelectorAll('.auth-toggle-pw').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const inp = document.getElementById(btn.dataset.target);
-        const icon = btn.querySelector('i');
-        if (inp.type === 'password') {
-          inp.type = 'text';
-          icon.className = 'fa-solid fa-eye-slash';
-        } else {
-          inp.type = 'password';
-          icon.className = 'fa-solid fa-eye';
-        }
-      });
-    });
-
-    // Password strength meter
-    const pwInput = document.getElementById('auth-password-su');
-    if (pwInput) {
-      pwInput.addEventListener('input', () => {
-        const v = pwInput.value;
-        const meter = document.getElementById('pw-strength');
-        const fill = document.getElementById('pw-strength-fill');
-        const label = document.getElementById('pw-strength-label');
-        if (!v) { meter.style.display = 'none'; return; }
-        meter.style.display = 'flex';
-        let score = 0;
-        if (v.length >= 8) score++;
-        if (/[A-Z]/.test(v)) score++;
-        if (/[0-9]/.test(v)) score++;
-        if (/[^A-Za-z0-9]/.test(v)) score++;
-        const levels = [
-          { pct: '25%', color: '#f87171', text: 'Weak' },
-          { pct: '50%', color: '#fb923c', text: 'Fair' },
-          { pct: '75%', color: '#facc15', text: 'Good' },
-          { pct: '100%', color: '#4ade80', text: 'Strong' },
-        ];
-        const lvl = levels[Math.max(0, score - 1)];
-        fill.style.width = lvl.pct;
-        fill.style.background = lvl.color;
-        label.textContent = lvl.text;
-        label.style.color = lvl.color;
-      });
-    }
   </script>
-  <!-- PWA update banner — shown when a new SW version is waiting -->
-  <div id="sw-update-banner" style="
-    display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
-    background:var(--bg-surface,#1e1e2e);border:1px solid rgba(99,217,255,0.3);
-    border-radius:14px;padding:12px 18px;z-index:9999;
-    display:none;align-items:center;gap:12px;
-    box-shadow:0 8px 32px rgba(0,0,0,0.5);font-size:13px;
-    color:var(--text-primary,#f0f2ff);white-space:nowrap;
-  ">
-    <i class="fa-solid fa-rotate" style="color:#ff2d6e"></i>
-    <span>New version available</span>
-    <button id="sw-update-btn" style="
-      padding:5px 14px;border-radius:8px;border:none;cursor:pointer;
-      background:linear-gradient(135deg,#ff2d6e,#a78bfa);
-      color:#050508;font-size:12px;font-weight:700;
-    ">Update</button>
-    <button id="sw-update-dismiss" style="
-      background:none;border:none;cursor:pointer;
-      color:var(--text-muted,#666);font-size:16px;line-height:1;
-    ">×</button>
-  </div>
-
-  <!-- GITHUB WEBHOOK SETUP MODAL -->
-  <div id="gh-webhook-modal" style="display:none;position:fixed;inset:0;z-index:800;background:rgba(0,0,0,0.75);backdrop-filter:blur(12px);align-items:center;justify-content:center;">
-    <div style="background:var(--bg-surface);border:1px solid var(--border-mid);border-radius:var(--radius-xl);width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 32px 80px rgba(0,0,0,0.6);">
-      <div style="padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:0">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:36px;height:36px;background:#24292e;border-radius:10px;display:flex;align-items:center;justify-content:center">
-            <i class="fa-brands fa-github" style="color:#fff;font-size:16px"></i>
-          </div>
-          <div>
-            <div style="font-family:var(--font-display);font-weight:800;font-size:16px">Automate Ship Posts</div>
-            <div style="font-size:12px;color:var(--text-muted)">Connect GitHub Webhooks to auto-post releases</div>
-          </div>
-        </div>
-        <button id="gh-webhook-modal-close" style="color:var(--text-muted);font-size:18px;padding:4px 8px;border-radius:8px;transition:color 0.15s" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-      <div id="gh-webhook-modal-body" style="padding:20px 24px 24px"></div>
-    </div>
-  </div>
-
-  <!-- CODESANDBOX EMBED MODAL -->
-  <div id="sandbox-embed-modal" style="display:none;position:fixed;inset:0;z-index:800;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);align-items:center;justify-content:center;">
-    <div style="background:var(--bg-surface);border:1px solid var(--border-mid);border-radius:var(--radius-xl);width:680px;max-width:95vw;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,0.6);">
-      <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0">
-        <div style="display:flex;align-items:center;gap:10px">
-          <i class="fa-solid fa-code" style="color:var(--cyan);font-size:15px"></i>
-          <span style="font-family:var(--font-display);font-weight:700;font-size:15px" id="sandbox-embed-title">Code Sandbox</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <a id="sandbox-embed-fork-link" href="#" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:var(--emerald);display:flex;align-items:center;gap:5px;text-decoration:none;padding:4px 10px;background:rgba(62,207,142,0.1);border:1px solid rgba(62,207,142,0.25);border-radius:8px;font-weight:600">
-            <i class="fa-solid fa-code-fork" style="font-size:10px"></i> Fork
-          </a>
-          <a id="sandbox-embed-open-link" href="#" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:var(--cyan);display:flex;align-items:center;gap:5px;text-decoration:none;padding:4px 10px;background:var(--cyan-dim);border:1px solid rgba(255,45,110,0.2);border-radius:8px;font-weight:600">
-            <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px"></i> Open
-          </a>
-          <button id="sandbox-embed-modal-close" style="color:var(--text-muted);font-size:18px;padding:4px 8px;border-radius:8px;transition:color 0.15s">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-      </div>
-      <div id="sandbox-embed-body" style="flex:1;min-height:480px;background:#1e1e1e"></div>
-    </div>
-  </div>
-
-  <script>
-    // ── Webhook modal close ─────────────────────────────────────────────
-    document.getElementById('gh-webhook-modal-close')?.addEventListener('click', () => {
-      document.getElementById('gh-webhook-modal').style.display = 'none';
-    });
-    document.getElementById('gh-webhook-modal')?.addEventListener('click', e => {
-      if (e.target === document.getElementById('gh-webhook-modal'))
-        document.getElementById('gh-webhook-modal').style.display = 'none';
-    });
-
-    // ── Sandbox modal close ─────────────────────────────────────────────
-    document.getElementById('sandbox-embed-modal-close')?.addEventListener('click', () => {
-      document.getElementById('sandbox-embed-modal').style.display = 'none';
-      document.getElementById('sandbox-embed-body').innerHTML = '';
-    });
-    document.getElementById('sandbox-embed-modal')?.addEventListener('click', e => {
-      if (e.target === document.getElementById('sandbox-embed-modal')) {
-        document.getElementById('sandbox-embed-modal').style.display = 'none';
-        document.getElementById('sandbox-embed-body').innerHTML = '';
-      }
-    });
-  </script>
-
-  <script>
-    // ── SW update detection ─────────────────────────────────────────────
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').then(reg => {
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // A new SW is waiting — show the update banner
-              const banner = document.getElementById('sw-update-banner');
-              if (banner) banner.style.display = 'flex';
-            }
-          });
-        });
-      });
-
-      // When the new SW takes over, reload to get the fresh shell
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!refreshing) { refreshing = true; location.reload(); }
-      });
-    }
-
-    document.getElementById('sw-update-btn')?.addEventListener('click', () => {
-      navigator.serviceWorker.getRegistration().then(reg => {
-        reg?.waiting?.postMessage({ type: 'SKIP_WAITING' });
-      });
-      document.getElementById('sw-update-banner').style.display = 'none';
-    });
-    document.getElementById('sw-update-dismiss')?.addEventListener('click', () => {
-      document.getElementById('sw-update-banner').style.display = 'none';
-    });
-
-    // ── Handle shortcut deep-links (?action=new-post, ?view=messages) ──
-    (function handleStartupParams() {
-      const params = new URLSearchParams(location.search);
-      const action = params.get('action');
-      const view   = params.get('view');
-      if (!action && !view) return;
-      // Clean the URL immediately
-      history.replaceState(null, '', location.pathname);
-      // Wait for the app to boot, then route
-      document.addEventListener('devit:signed-in', () => {
-        if (action === 'new-post' && typeof openNewPostModal === 'function') {
-          setTimeout(openNewPostModal, 600);
-        } else if (view && typeof navigateTo === 'function') {
-          setTimeout(() => navigateTo(view), 400);
-        }
-      }, { once: true });
-    })();
-  </script>
-
-  <script>
-    // Public trending feed on auth screen — fetches anon posts without requiring login
-    (async function loadAuthTrendingPreview() {
-      try {
-        const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.DEVIT_CONFIG;
-        const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/posts?select=id,content,likes_count,profiles!posts_author_id_fkey(username,display_name,avatar_url)&order=likes_count.desc&limit=5`,
-          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
-        );
-        if (!res.ok) return;
-        const posts = await res.json();
-        const list = document.getElementById('auth-trending-list');
-        if (!list || !posts?.length) return;
-        list.innerHTML = posts.slice(0, 4).map(p => {
-          const profile = p.profiles || {};
-          const preview = (p.content || '').replace(/```[\s\S]*?```/g, '[code]').replace(/\n/g,' ').slice(0, 90);
-          const initials = (profile.display_name || profile.username || 'U').slice(0,2).toUpperCase();
-          const avatarContent = profile.avatar_url
-            ? `<img src="${profile.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-            : `<span style="font-size:9px;font-weight:800;color:#fff">${initials}</span>`;
-          return `
-            <div class="auth-trending-item">
-              <div class="auth-trending-avatar" style="background:hsl(${(initials.charCodeAt(0)*37)%360},55%,32%)">${avatarContent}</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:11px;font-weight:700;color:rgba(245,245,240,0.9)">@${(profile.username||'dev').slice(0,18)}</div>
-                <div style="font-size:11px;color:rgba(153,153,168,0.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px">${preview || '…'}</div>
-              </div>
-              <span style="font-size:10px;color:rgba(56,189,248,0.8);flex-shrink:0;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-heart"></i>${p.likes_count||0}</span>
-            </div>`;
-        }).join('');
-      } catch (_) {}
-    })();
-  </script>
-
-</body>
-</html>
