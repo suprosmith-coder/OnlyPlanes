@@ -1222,6 +1222,20 @@ opacity: 0.09;
 .disc-chat-header-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .disc-chat-hash { font-size: 20px; color: #87898c; font-weight: 400; flex-shrink: 0; }
 .disc-chat-title { font-size: 15px; font-weight: 700; color: #f2f3f5; }
+
+/* Tappable channel name button — opens sidebar drawer */
+.disc-channel-name-btn {
+  display: flex; align-items: center; gap: 4px;
+  background: none; border: none; padding: 4px 8px 4px 4px;
+  border-radius: 6px; cursor: pointer;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.disc-channel-name-btn:hover,
+.disc-channel-name-btn:active {
+  background: rgba(255,255,255,0.06);
+}
+.disc-channel-name-btn .disc-chat-title { margin: 0; }
 .disc-chat-divider { width: 1px; height: 20px; background: #4e5058; flex-shrink: 0; }
 .disc-chat-topic { font-size: 13px; color: #87898c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

@@ -3675,8 +3675,10 @@ async function renderChannelChat(container, channel) {
   container.innerHTML = `
     <div class="disc-chat-header">
       <div class="disc-chat-header-left">
-        <span class="disc-chat-hash">#</span>
-        <h3 class="disc-chat-title">${channel.name}</h3>
+        <button id="open-sidebar-btn" class="disc-channel-name-btn" title="Show channels">
+          <span class="disc-chat-hash">#</span>
+          <h3 class="disc-chat-title">${channel.name}</h3>
+        </button>
         ${channel.topic ? `<div class="disc-chat-divider"></div><span class="disc-chat-topic">${escapeHtml(channel.topic)}</span>` : ''}
       </div>
       <div class="disc-chat-header-right">
@@ -3787,6 +3789,14 @@ async function renderChannelChat(container, channel) {
       if (!error) { modal.classList.remove('open'); loadPinnedResources(); toast('Resource pinned!', 'thumbtack'); }
       else toast('Failed: ' + error.message, 'circle-exclamation');
     });
+  });
+
+  // ── Tap channel name → open sidebar drawer ──
+  container.querySelector('#open-sidebar-btn')?.addEventListener('click', () => {
+    const communityView = container.closest('.community-view') || document.querySelector('.community-view');
+    if (communityView?._openSidebar) {
+      communityView._openSidebar();
+    }
   });
 
   // ── Toggle members panel ──
