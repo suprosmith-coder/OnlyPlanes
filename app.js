@@ -338,7 +338,8 @@ async function renderTagFeed(main, tag) {
 
   const { data: posts, error } = await sb
     .from('op_posts')
-    .select('id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, poll, author_id')
+    .select(`id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, poll,
+      profiles:op_profiles!author_id(id, username, display_name, avatar_url)`)
     .ilike('content', `%#${rawTag}%`)
     .order('created_at', { ascending: false })
     .limit(40);
@@ -349,14 +350,6 @@ async function renderTagFeed(main, tag) {
     if (metaEl) metaEl.textContent = 'No posts yet — be the first to post!';
     if (container) container.innerHTML = `<div style="padding:48px;text-align:center;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:12px">#️⃣</div><div>No posts tagged <strong>${escapeHtml(tag)}</strong> yet</div></div>`;
     return;
-  }
-
-  // Batch-fetch profiles (no FK hint — avoids silent null on mismatched constraint name)
-  const tagAuthorIds = [...new Set((posts || []).map(p => p.author_id).filter(Boolean))];
-  if (tagAuthorIds.length) {
-    const { data: tagProfiles } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').in('id', tagAuthorIds);
-    const tagProfileMap = Object.fromEntries((tagProfiles || []).map(p => [p.id, p]));
-    posts.forEach(p => { p.profiles = tagProfileMap[p.author_id] || null; });
   }
 
   if (metaEl) metaEl.textContent = `${posts.length} post${posts.length !== 1 ? 's' : ''}`;
@@ -1070,19 +1063,16 @@ async function handleDeepLink() {
 
   const { data: post, error } = await sb
     .from('op_posts')
-    .select('*')
+    .select(`
+      *,
+      profiles:op_profiles!author_id(id, username, display_name, avatar_url)
+    `)
     .eq('id', postId)
     .single();
 
   if (error || !post) {
     toast('Post not found or may have been deleted.', 'circle-exclamation');
     return;
-  }
-
-  // Fetch profile separately — no FK hint to avoid silent null on constraint name mismatch
-  if (post.author_id) {
-    const { data: dlProfile } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').eq('id', post.author_id).single();
-    post.profiles = dlProfile || null;
   }
 
   openPostThread(post, post.profiles);
@@ -1661,19 +1651,9 @@ async function runSearch(query) {
     posts = ftsRes.data;
   } else {
     const { data: ilikePosts } = await sb.from('op_posts')
-      .select('id, content, created_at, author_id')
+      .select('id, content, created_at, author_id, profiles(username, display_name, avatar_url)')
       .ilike('content', `%${query}%`).limit(5);
     posts = ilikePosts;
-  }
-
-  // Batch-fetch profiles for search result posts (no FK hint — avoids silent null)
-  if (posts?.length) {
-    const searchAuthorIds = [...new Set(posts.map(p => p.author_id).filter(Boolean))];
-    if (searchAuthorIds.length) {
-      const { data: searchProfiles } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').in('id', searchAuthorIds);
-      const searchProfileMap = Object.fromEntries((searchProfiles || []).map(p => [p.id, p]));
-      posts.forEach(p => { p.profiles = searchProfileMap[p.author_id] || null; });
-    }
   }
 
   const profiles = profilesRes?.data;
@@ -2145,7 +2125,10 @@ async function loadPosts(container, stackFilter = '') {
 
   let query = sb
     .from('op_posts')
-    .select('id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, poll, author_id')
+    .select(`
+      id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, poll, author_id,
+      profiles:op_profiles!author_id(id, username, display_name, avatar_url, tech_stack)
+    `)
     .order('created_at', { ascending: false })
     .limit(30);
 
@@ -2162,14 +2145,6 @@ async function loadPosts(container, stackFilter = '') {
   const { data: posts, error } = await query;
   if (error) { container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--rose)">Failed to load posts</div>`; return; }
 
-  // Batch-fetch profiles (no FK hint — avoids silent null on mismatched constraint name)
-  // Includes tech_stack so stack-filter still works client-side
-  const feedAuthorIds = [...new Set((posts || []).map(p => p.author_id).filter(Boolean))];
-  if (feedAuthorIds.length) {
-    const { data: feedProfiles } = await sb.from('op_profiles').select('id, username, display_name, avatar_url, tech_stack').in('id', feedAuthorIds);
-    const feedProfileMap = Object.fromEntries((feedProfiles || []).map(p => [p.id, p]));
-    (posts || []).forEach(p => { p.profiles = feedProfileMap[p.author_id] || null; });
-  }
 
   // Apply stack filter client-side (filter by author's tech_stack)
   let filteredPosts = posts || [];
@@ -3066,21 +3041,13 @@ async function loadComments(postId) {
   if (!container) return;
   const { data: comments } = await sb
     .from('op_comments')
-    .select('id, content, created_at, author_id')
+    .select('id, content, created_at, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
     .eq('post_id', postId)
     .order('created_at', { ascending: true });
 
   if (!comments?.length) {
     container.innerHTML = `<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">No comments yet — start the conversation!</div>`;
     return;
-  }
-
-  // Batch-fetch profiles (no FK hint — avoids silent null on mismatched constraint name)
-  const commentAuthorIds = [...new Set((comments || []).map(c => c.author_id).filter(Boolean))];
-  if (commentAuthorIds.length) {
-    const { data: commentProfiles } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').in('id', commentAuthorIds);
-    const commentProfileMap = Object.fromEntries((commentProfiles || []).map(p => [p.id, p]));
-    comments.forEach(c => { c.profiles = commentProfileMap[c.author_id] || null; });
   }
 
   // Fetch comment likes for current user
@@ -3255,19 +3222,12 @@ async function renderExplore(main) {
 
     } else if (tabId === 'trending') {
       const { data: posts } = await sb.from('op_posts')
-        .select('id, content, code_block, code_lang, image_url, likes_count, comments_count, reposts_count, created_at, author_id')
+        .select('id, content, code_block, code_lang, image_url, likes_count, comments_count, reposts_count, created_at, author_id, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
         .order('likes_count', { ascending: false })
         .limit(20);
       content.innerHTML = `<div style="padding:12px 16px 4px;font-family:var(--font-display);font-size:14px;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-fire" style="color:var(--violet)"></i> Trending Posts</div><div id="trending-posts-feed"></div>`;
       const feed = $('#trending-posts-feed', content);
       if (!posts?.length) { feed.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">No trending posts yet 🌱</div>`; return; }
-      // Batch-fetch profiles (no FK hint — avoids silent null on mismatched constraint name)
-      const trendAuthorIds = [...new Set((posts || []).map(p => p.author_id).filter(Boolean))];
-      if (trendAuthorIds.length) {
-        const { data: trendProfiles } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').in('id', trendAuthorIds);
-        const trendProfileMap = Object.fromEntries((trendProfiles || []).map(p => [p.id, p]));
-        posts.forEach(p => { p.profiles = trendProfileMap[p.author_id] || null; });
-      }
       const postIds = posts.map(p => p.id);
       const { data: likes } = await sb.from('op_post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
       const likedIds = new Set((likes || []).map(l => l.post_id));
@@ -3580,13 +3540,8 @@ async function renderChannelChat(container, channel) {
       </div>
     </div>
     <div id="pinned-resources-bar" style="display:none;padding:8px 16px;background:rgba(251,191,36,0.05);border-bottom:1px solid rgba(251,191,36,0.12)"></div>
-    <div class="disc-chat-messages" id="chat-messages-list">
-      <div class="disc-channel-welcome">
-        <div class="disc-welcome-hash">#</div>
-        <h3 class="disc-welcome-title">Welcome to #${escapeHtml(channel.name)}!</h3>
-        <p class="disc-welcome-sub">This is the start of the <strong>#${escapeHtml(channel.name)}</strong> channel.</p>
-      </div>
-    </div>
+    <div class="disc-chat-messages" id="chat-messages-list"></div>
+    <div class="disc-chat-typing-bar" id="disc-chat-typing-bar" style="display:none;padding:2px 16px 0;min-height:18px"></div>
     <div class="disc-chat-input-area">
       <div class="disc-chat-input-wrap">
         <button class="disc-attach-btn" title="Attach file"><i class="fa-solid fa-plus"></i></button>
@@ -3601,20 +3556,48 @@ async function renderChannelChat(container, channel) {
     </div>
   `;
 
-  // Load pinned resources
+  // ── Grab DOM refs early — mirrors DM's top-of-function refs ──
+  const msgList  = $('#chat-messages-list', container);
+  const input    = $('#channel-chat-input', container);
+  const sendBtn  = $('#channel-send-btn', container);
+  const typingBar = container.querySelector('#disc-chat-typing-bar');
+
+  // ── Reply state — declared before message render so the loop can reference it ──
+  const replyState = { msg: null };
+
+  // ── Typing indicator helpers (mirrors DM's showTypingIndicator / hideTypingIndicator) ──
+  let _chTypingTimeout = null;
+  function showChTypingIndicator(name) {
+    if (!typingBar) return;
+    typingBar.style.display = 'flex';
+    typingBar.style.alignItems = 'center';
+    typingBar.style.gap = '6px';
+    typingBar.innerHTML = `
+      <span class="typing-indicator">
+        <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
+      </span>
+      <span style="font-size:12px;color:var(--text-muted)">${escapeHtml(name)} is typing…</span>`;
+    clearTimeout(_chTypingTimeout);
+    _chTypingTimeout = setTimeout(() => { if (typingBar) typingBar.style.display = 'none'; }, 3000);
+  }
+  function hideChTypingIndicator() {
+    clearTimeout(_chTypingTimeout);
+    if (typingBar) typingBar.style.display = 'none';
+  }
+
+  // ── Load pinned resources ──
   async function loadPinnedResources() {
     const { data: pins } = await sb.from('op_channel_pins').select('*').eq('channel_id', channel.id).order('created_at', { ascending: false }).limit(5);
     const bar = container.querySelector('#pinned-resources-bar');
     if (!bar) return;
     if (!pins?.length) { bar.style.display = 'none'; return; }
-    bar.style.display = 'flex';
-    bar.style.cssText += ';flex-wrap:wrap;gap:6px;align-items:center;';
+    bar.style.cssText += ';display:flex;flex-wrap:wrap;gap:6px;align-items:center;';
     bar.innerHTML = `<span style="font-size:10px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:0.05em;margin-right:2px"><i class="fa-solid fa-thumbtack" style="font-size:9px"></i> Pinned</span>` +
       pins.map(p => `<a href="${escapeHtml(p.url || '#')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="pinned-resource-chip">${escapeHtml(p.emoji || '📌')} ${escapeHtml(p.title || p.url || 'Resource')}</a>`).join('');
   }
   loadPinnedResources();
 
-  // Pin Resource modal
+  // ── Pin Resource modal ──
   container.querySelector('#pin-resource-btn')?.addEventListener('click', () => {
     const modal = document.getElementById('modal-overlay');
     const body  = document.getElementById('modal-body');
@@ -3634,7 +3617,6 @@ async function renderChannelChat(container, channel) {
         </div>
         <button class="auth-btn-primary" id="pin-confirm-btn"><i class="fa-solid fa-thumbtack"></i> Pin Resource</button>
       </div>`;
-
     let emoji = '📌';
     body.querySelectorAll('.pin-emoji-btn').forEach(b => {
       b.addEventListener('click', () => {
@@ -3643,7 +3625,6 @@ async function renderChannelChat(container, channel) {
         emoji = b.dataset.emoji;
       });
     });
-
     document.getElementById('pin-confirm-btn').addEventListener('click', async () => {
       const title = document.getElementById('pin-title').value.trim();
       const url   = document.getElementById('pin-url').value.trim();
@@ -3654,7 +3635,7 @@ async function renderChannelChat(container, channel) {
     });
   });
 
-  // Toggle members panel
+  // ── Toggle members panel ──
   container.querySelector('#toggle-members-btn')?.addEventListener('click', () => {
     const panel = document.getElementById('members-panel');
     if (panel) {
@@ -3663,19 +3644,12 @@ async function renderChannelChat(container, channel) {
     }
   });
 
-  const msgList = $('#chat-messages-list', container);
-
-  // ch:reply event — fired by reply buttons inside buildChannelMessage
+  // ── ch:reply event — fired by reply buttons inside buildChannelMessage ──
   msgList.addEventListener('ch:reply', e => {
-    const { msg } = e.detail;
-    if (typeof showReplyBar === 'function') showReplyBar(msg);
-    else {
-      // showReplyBar defined later; store and trigger after setup
-      replyState._pending = msg;
-    }
+    showReplyBar(e.detail.msg);
   });
 
-  // Load messages — no FK join (mirrors DM pattern: fetch messages then profiles separately)
+  // ── Load messages — no FK join (mirrors DM: fetch messages then profiles separately) ──
   const { data: messages, error: msgLoadErr } = await sb
     .from('op_channel_messages')
     .select('id, content, created_at, author_id, reply_to_id, reply_to_content, reply_to_author')
@@ -3687,7 +3661,19 @@ async function renderChannelChat(container, channel) {
 
   const msgsToRender = messages || [];
 
-  // Batch-fetch all unique author profiles (same idea as DM's pre-fetched `other`)
+  // ── Welcome banner — only rendered when no messages (mirrors DM's welcome banner) ──
+  if (!msgsToRender.length) {
+    const welcomeEl = document.createElement('div');
+    welcomeEl.id = 'ch-welcome-banner';
+    welcomeEl.className = 'disc-channel-welcome';
+    welcomeEl.innerHTML = `
+      <div class="disc-welcome-hash">#</div>
+      <h3 class="disc-welcome-title">Welcome to #${escapeHtml(channel.name)}!</h3>
+      <p class="disc-welcome-sub">This is the start of the <strong>#${escapeHtml(channel.name)}</strong> channel.</p>`;
+    msgList.appendChild(welcomeEl);
+  }
+
+  // ── Batch-fetch all author profiles (mirrors DM's single up-front profile fetch) ──
   const authorIds = [...new Set(msgsToRender.map(m => m.author_id).filter(Boolean))];
   const profileMap = {};
   if (authorIds.length) {
@@ -3697,7 +3683,7 @@ async function renderChannelChat(container, channel) {
       .in('id', authorIds);
     (authorProfiles || []).forEach(p => { profileMap[p.id] = p; });
   }
-  // Always include own profile so sent messages render immediately
+  // Always seed own profile so optimistic sends render immediately
   if (State.profile?.id) profileMap[State.profile.id] = State.profile;
 
   msgsToRender.forEach((msg, i) => {
@@ -3708,10 +3694,7 @@ async function renderChannelChat(container, channel) {
   });
   msgList.scrollTop = msgList.scrollHeight;
 
-  // ── Reply state (tracks which message is being replied to) ──────
-  const replyState = { msg: null };
-
-  // ── Broadcast channel for instant delivery (mirrors DM pattern) ──
+  // ── Broadcast channel — mirrors DM's realtimeCh exactly ──
   const broadcastCh = sb.channel(`channel_realtime_${channel.id}`, {
     config: { broadcast: { self: false } },
   });
@@ -3722,8 +3705,12 @@ async function renderChannelChat(container, channel) {
       if (!msg || msg.author_id === State.user.id) return;
       const listEl = document.getElementById('chat-messages-list');
       if (!listEl) return;
-      // Avoid duplicate if postgres_changes already added it
       if (msg.id && listEl.querySelector(`[data-msgid="${msg.id}"]`)) return;
+      // Remove welcome banner on first incoming message
+      listEl.querySelector('#ch-welcome-banner')?.remove();
+      hideChTypingIndicator();
+      // Hydrate profile from map (sender broadcast their profile in payload)
+      if (msg.profiles) profileMap[msg.author_id] = msg.profiles;
       const prev = listEl.lastElementChild?.dataset?.uid ? listEl.lastElementChild : null;
       const isCont = prev && prev.dataset.uid === msg.author_id && !prev.classList.contains('disc-channel-welcome');
       const msgEl = buildChannelMessage(msg, isCont, profileMap, listEl, input, replyState);
@@ -3731,12 +3718,19 @@ async function renderChannelChat(container, channel) {
       listEl.appendChild(msgEl);
       listEl.scrollTop = listEl.scrollHeight;
     })
+    .on('broadcast', { event: 'typing' }, ({ payload }) => {
+      // mirrors DM's typing broadcast handler
+      if (payload?.userId === State.user.id) return;
+      const senderProfile = profileMap[payload?.userId];
+      const name = senderProfile?.display_name || senderProfile?.username || 'Someone';
+      showChTypingIndicator(name);
+    })
     .subscribe();
 
   const unsubBroadcast = realtimeManager.subscribeRaw(`view:channel_bc_${channel.id}`, broadcastCh, () => {});
   ViewUnsubFns.push(unsubBroadcast);
 
-  // Postgres changes as fallback (other devices / missed broadcasts)
+  // ── Postgres changes fallback (other devices / missed broadcasts) ──
   const unsubPg = realtimeManager.subscribe(
     `view:channel_${channel.id}`,
     'op_channel_messages',
@@ -3746,10 +3740,14 @@ async function renderChannelChat(container, channel) {
       if (msg.author_id === State.user.id) return;
       const listEl = document.getElementById('chat-messages-list');
       if (!listEl) return;
-      // Avoid duplicate if broadcast already added it
       if (msg.id && listEl.querySelector(`[data-msgid="${msg.id}"]`)) return;
-      const { data: profile } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').eq('id', msg.author_id).single();
-      msg.profiles = profile;
+      // Fetch profile if not already in map
+      if (!profileMap[msg.author_id]) {
+        const { data: profile } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').eq('id', msg.author_id).single();
+        if (profile) profileMap[profile.id] = profile;
+      }
+      msg.profiles = profileMap[msg.author_id] || null;
+      listEl.querySelector('#ch-welcome-banner')?.remove();
       const prev = listEl.lastElementChild?.dataset?.uid ? listEl.lastElementChild : null;
       const isCont = prev && prev.dataset.uid === msg.author_id && !prev.classList.contains('disc-channel-welcome');
       const msgEl = buildChannelMessage(msg, isCont, profileMap, listEl, input, replyState);
@@ -3761,58 +3759,10 @@ async function renderChannelChat(container, channel) {
   );
   ViewUnsubFns.push(unsubPg);
 
-  // Send message
-  const input = $('#channel-chat-input', container);
-  const sendBtn = $('#channel-send-btn', container);
-
-  async function sendMsg() {
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = '';
-    // Capture and clear reply state
-    const replyRef = replyState.msg ? {
-      reply_to_id:      replyState.msg.id,
-      reply_to_content: replyState.msg.content,
-      reply_to_author:  replyState.msg.profiles?.display_name || replyState.msg.profiles?.username || 'User',
-    } : {};
-    clearReplyBar();
-    const msgData = { channel_id: channel.id, author_id: State.user.id, content: text, ...replyRef };
-    const { data: msg, error: msgErr } = await MutationGuard.wrapInsert(
-      'channel_msg',
-      () => sb.from('op_channel_messages').insert(msgData).select().single()
-    );
-    if (msgErr?.blocked) {
-      toast(msgErr.message, 'triangle-exclamation');
-      input.value = text;
-      return;
-    }
-    if (msgErr) {
-      toast('Failed to send message', 'circle-exclamation');
-      input.value = text;
-      return;
-    }
-    // Optimistic render — use returned row or fall back to local data
-    const displayMsg = msg || { ...msgData, created_at: new Date().toISOString() };
-    displayMsg.profiles = State.profile;
-    const lastMsg = msgList.lastElementChild?.dataset?.uid ? msgList.lastElementChild : null;
-    const isCont = lastMsg && lastMsg.dataset.uid === State.user.id && !replyRef.reply_to_id;
-    const msgEl = buildChannelMessage(displayMsg, isCont, profileMap, msgList, input, replyState);
-    if (displayMsg.id) msgEl.dataset.msgid = displayMsg.id;
-    msgList.appendChild(msgEl);
-    msgList.scrollTop = msgList.scrollHeight;
-    // Broadcast to other members for instant delivery
-    if (msg) {
-      await broadcastCh.send({
-        type: 'broadcast',
-        event: 'new_message',
-        payload: { ...msg, profiles: State.profile },
-      });
-    }
-  }
-
-  // ── Reply bar (shown above input when replying) ───────────────
+  // ── Reply bar (mirrors DM pattern, inserted above input area) ──
   const replyBar = document.createElement('div');
   replyBar.id = 'channel-reply-bar';
+  replyBar.className = 'ch-reply-bar';
   replyBar.style.display = 'none';
   replyBar.innerHTML = `
     <div class="ch-reply-bar-inner">
@@ -3828,7 +3778,7 @@ async function renderChannelChat(container, channel) {
     replyState.msg = msg;
     const authorName = msg.profiles?.display_name || msg.profiles?.username || 'User';
     replyBar.querySelector('.ch-reply-bar-name').textContent = authorName;
-    replyBar.querySelector('.ch-reply-bar-preview').textContent = msg.content.slice(0, 60) + (msg.content.length > 60 ? '…' : '');
+    replyBar.querySelector('.ch-reply-bar-preview').textContent = (msg.content || '').slice(0, 60) + ((msg.content || '').length > 60 ? '…' : '');
     replyBar.style.display = 'block';
     input.focus();
   }
@@ -3840,11 +3790,60 @@ async function renderChannelChat(container, channel) {
 
   replyBar.querySelector('.ch-reply-bar-close').addEventListener('click', clearReplyBar);
 
-  // Handle any reply triggered before showReplyBar was available
-  if (replyState._pending) { showReplyBar(replyState._pending); delete replyState._pending; }
+  // ── Send message — mirrors DM's sendDM exactly ──
+  async function sendMsg() {
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    const replyRef = replyState.msg ? {
+      reply_to_id:      replyState.msg.id,
+      reply_to_content: replyState.msg.content,
+      reply_to_author:  replyState.msg.profiles?.display_name || replyState.msg.profiles?.username || 'User',
+    } : {};
+    clearReplyBar();
+    const msgData = { channel_id: channel.id, author_id: State.user.id, content: text, ...replyRef };
+    const { data: msg, error: msgErr } = await MutationGuard.wrapInsert(
+      'channel_msg',
+      () => sb.from('op_channel_messages').insert(msgData).select().single()
+    );
+    if (msgErr?.blocked) { toast(msgErr.message, 'triangle-exclamation'); input.value = text; return; }
+    if (msgErr)          { toast('Failed to send message', 'circle-exclamation'); input.value = text; return; }
+    // Optimistic render — use returned row, fall back to local data (mirrors DM)
+    const displayMsg = msg || { ...msgData, created_at: new Date().toISOString() };
+    displayMsg.profiles = State.profile;
+    // Remove welcome banner on first sent message
+    msgList.querySelector('#ch-welcome-banner')?.remove();
+    const lastMsg = msgList.lastElementChild?.dataset?.uid ? msgList.lastElementChild : null;
+    const isCont = lastMsg && lastMsg.dataset.uid === State.user.id && !replyRef.reply_to_id;
+    const msgEl = buildChannelMessage(displayMsg, isCont, profileMap, msgList, input, replyState);
+    if (displayMsg.id) msgEl.dataset.msgid = displayMsg.id;
+    msgList.appendChild(msgEl);
+    msgList.scrollTop = msgList.scrollHeight;
+    // Broadcast for instant delivery to other members
+    if (msg) {
+      await broadcastCh.send({
+        type: 'broadcast',
+        event: 'new_message',
+        payload: { ...msg, profiles: State.profile },
+      });
+    }
+  }
+
+  // ── Broadcast typing event with debounce (mirrors DM's typing broadcast) ──
+  let _chTypingBroadcastTimeout = null;
+  input.addEventListener('input', () => {
+    if (_chTypingBroadcastTimeout) return;
+    broadcastCh.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { userId: State.user.id },
+    }).catch(() => {});
+    _chTypingBroadcastTimeout = setTimeout(() => { _chTypingBroadcastTimeout = null; }, 2000);
+  });
 
   sendBtn.addEventListener('click', sendMsg);
   input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } });
+  input.focus();
 }
 
 function buildChannelMessage(msg, isContinuation, profileMap = {}, msgList = null, input = null, replyState = null) {
@@ -3974,17 +3973,9 @@ function buildChannelMessage(msg, isContinuation, profileMap = {}, msgList = nul
 async function renderCommunityMembers(container, communityId) {
   const { data: members } = await sb
     .from('op_community_members')
-    .select('user_id, role')
+    .select('user_id, role, profiles:op_profiles!user_id(id, username, display_name, avatar_url)')
     .eq('community_id', communityId)
     .limit(20);
-
-  // Batch-fetch profiles (no FK hint — avoids silent null on mismatched constraint name)
-  const memberUserIds = [...new Set((members || []).map(m => m.user_id).filter(Boolean))];
-  if (memberUserIds.length) {
-    const { data: memberProfiles } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').in('id', memberUserIds);
-    const memberProfileMap = Object.fromEntries((memberProfiles || []).map(p => [p.id, p]));
-    (members || []).forEach(m => { m.profiles = memberProfileMap[m.user_id] || null; });
-  }
 
   if (!container) return;
   const online = (members || []).filter(m => State.onlineUsers.has(m.user_id));
@@ -4158,14 +4149,8 @@ async function loadNotifications() {
       updateBadges();
       // Navigate to post if applicable
       if (item.dataset.postId && item.dataset.postId !== 'null') {
-        const { data: post } = await sb.from('op_posts').select('*').eq('id', item.dataset.postId).single();
-        if (post) {
-          if (post.author_id) {
-            const { data: notifProfile } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').eq('id', post.author_id).single();
-            post.profiles = notifProfile || null;
-          }
-          openPostThread(post, post.profiles);
-        }
+        const { data: post } = await sb.from('op_posts').select('*, profiles:op_profiles!author_id(id,username,display_name,avatar_url)').eq('id', item.dataset.postId).single();
+        if (post) openPostThread(post, post.profiles);
       } else if (item.dataset.actorId && item.dataset.actorId !== 'null') {
         // For follows, link requests etc. — go to their profile
         const notifType = item.querySelector('.notif-text')?.textContent;
@@ -4891,16 +4876,11 @@ async function loadProfilePosts(container, userId) {
   container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-muted)">Loading…</div>`;
   const { data: posts } = await sb
     .from('op_posts')
-    .select('id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, author_id')
+    .select('id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, author_id, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
     .eq('author_id', userId)
     .order('created_at', { ascending: false });
 
   if (!posts?.length) { container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">No posts yet</div>`; return; }
-
-  // All posts share same author — one profile fetch is enough
-  // (no FK hint — avoids silent null on mismatched constraint name)
-  const { data: profilePostsProfile } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').eq('id', userId).single();
-  posts.forEach(p => { p.profiles = profilePostsProfile || null; });
 
   const postIds = posts.map(p => p.id);
   const { data: likes } = await sb.from('op_post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
@@ -5133,7 +5113,7 @@ async function renderBookmarks(main) {
 
   const { data: bookmarks } = await sb
     .from('op_bookmarks')
-    .select('post_id, posts(id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, created_at, author_id)')
+    .select('post_id, posts(id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, created_at, profiles:op_profiles!author_id(id, username, display_name, avatar_url))')
     .eq('user_id', State.user.id)
     .order('created_at', { ascending: false });
 
@@ -5141,15 +5121,6 @@ async function renderBookmarks(main) {
   if (!bookmarks?.length) {
     container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">No bookmarks yet — save posts for later! 🔖</div>`;
     return;
-  }
-
-  // Batch-fetch profiles for bookmarked posts (no FK hint — avoids silent null on mismatched constraint name)
-  const bkPosts = (bookmarks || []).map(b => b.posts).filter(Boolean);
-  const bkAuthorIds = [...new Set(bkPosts.map(p => p.author_id).filter(Boolean))];
-  if (bkAuthorIds.length) {
-    const { data: bkProfiles } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').in('id', bkAuthorIds);
-    const bkProfileMap = Object.fromEntries((bkProfiles || []).map(p => [p.id, p]));
-    bkPosts.forEach(p => { p.profiles = bkProfileMap[p.author_id] || null; });
   }
 
   container.innerHTML = '';
@@ -5642,7 +5613,7 @@ function renderSnippets(main) {
 async function loadSnippets(container) {
   const { data: snippets } = await sb
     .from('op_snippets')
-    .select('*')
+    .select('*, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
     .order('created_at', { ascending: false })
     .limit(20);
 
@@ -5654,14 +5625,6 @@ async function loadSnippets(container) {
         <div style="font-size:14px;opacity:0.6">Be the first to post one!</div>
       </div>`;
     return;
-  }
-
-  // Batch-fetch profiles (no FK hint — avoids silent null on mismatched constraint name)
-  const snippetAuthorIds = [...new Set((snippets || []).map(s => s.author_id).filter(Boolean))];
-  if (snippetAuthorIds.length) {
-    const { data: snippetProfiles } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').in('id', snippetAuthorIds);
-    const snippetProfileMap = Object.fromEntries((snippetProfiles || []).map(p => [p.id, p]));
-    snippets.forEach(s => { s.profiles = snippetProfileMap[s.author_id] || null; });
   }
 
   container.innerHTML = '';
@@ -6040,7 +6003,7 @@ async function loadSnippetComments(snippetId, container) {
   if (!container) return;
   const { data: comments } = await sb
     .from('op_snippet_comments')
-    .select('id, content, created_at, author_id')
+    .select('id, content, created_at, profiles:op_profiles!author_id(id, username, display_name, avatar_url, is_github)')
     .eq('snippet_id', snippetId)
     .order('created_at', { ascending: true })
     .limit(50);
@@ -6048,14 +6011,6 @@ async function loadSnippetComments(snippetId, container) {
   if (!comments?.length) {
     container.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px;">No comments yet — be the first!</div>`;
     return;
-  }
-
-  // Batch-fetch profiles (no FK hint — avoids silent null on mismatched constraint name)
-  const scAuthorIds = [...new Set((comments || []).map(c => c.author_id).filter(Boolean))];
-  if (scAuthorIds.length) {
-    const { data: scProfiles } = await sb.from('op_profiles').select('id, username, display_name, avatar_url, is_github').in('id', scAuthorIds);
-    const scProfileMap = Object.fromEntries((scProfiles || []).map(p => [p.id, p]));
-    comments.forEach(c => { c.profiles = scProfileMap[c.author_id] || null; });
   }
 
   container.innerHTML = '';

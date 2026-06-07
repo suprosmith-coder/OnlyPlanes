@@ -5813,3 +5813,107 @@ code, .post-code, pre { font-family: var(--font-mono) !important; }
   background: linear-gradient(90deg, #ebebeb 25%, #f5f5f5 50%, #ebebeb 75%);
   background-size: 200% 100%;
 }
+
+/* ── Channel chat: typing bar, reply bar, message actions, highlight ─── */
+
+/* Typing bar sits between message list and input area */
+.disc-chat-typing-bar {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 16px 4px;
+  min-height: 20px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Reply bar — mirrors DM reply bar, sits above input wrap */
+.ch-reply-bar {
+  padding: 6px 12px 0;
+}
+.ch-reply-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(88,101,242,0.08);
+  border: 1px solid rgba(88,101,242,0.2);
+  border-radius: 8px 8px 0 0;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.ch-reply-bar-label { color: var(--text-secondary); flex-shrink: 0; }
+.ch-reply-bar-preview {
+  flex: 1; min-width: 0;
+  color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ch-reply-bar-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); padding: 2px 4px; border-radius: 4px;
+  flex-shrink: 0; transition: color 0.12s;
+}
+.ch-reply-bar-close:hover { color: var(--text-primary); }
+
+/* Message action buttons — appear on hover */
+.disc-msg-actions {
+  display: none;
+  position: absolute;
+  right: 8px;
+  top: -14px;
+  background: var(--bg-float, #18191c);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 4px;
+  gap: 2px;
+  align-items: center;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.disc-msg:hover { position: relative; }
+.disc-msg:hover .disc-msg-actions { display: flex; }
+.disc-msg-action-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); padding: 4px 6px;
+  border-radius: 4px; font-size: 12px;
+  transition: color 0.1s, background 0.1s;
+}
+.disc-msg-action-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+
+/* Reply quote inside message body */
+.disc-msg-reply-quote {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-muted);
+  margin-bottom: 4px; cursor: pointer;
+  padding: 2px 6px 2px 0;
+  border-left: 2px solid var(--cyan);
+  padding-left: 6px;
+  border-radius: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%;
+  transition: color 0.12s;
+}
+.disc-msg-reply-quote:hover { color: var(--text-secondary); }
+.disc-msg-reply-author { font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
+.disc-msg-reply-text { overflow: hidden; text-overflow: ellipsis; }
+
+/* Inline edit textarea */
+.ch-edit-wrap { margin-top: 4px; }
+.ch-edit-input {
+  width: 100%; background: var(--bg-elevated, #2b2d31);
+  border: 1px solid var(--cyan); border-radius: 6px;
+  color: var(--text-primary); font-size: 14px; padding: 6px 10px;
+  resize: none; font-family: inherit;
+}
+.ch-edit-input:focus { outline: none; }
+.ch-edit-actions {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 4px; font-size: 12px;
+}
+
+/* Flash highlight when jumping to a quoted message */
+@keyframes chMsgHighlight {
+  0%   { background: rgba(88,101,242,0.25); }
+  100% { background: transparent; }
+}
+.disc-msg-highlight { animation: chMsgHighlight 1.5s ease-out forwards; }
