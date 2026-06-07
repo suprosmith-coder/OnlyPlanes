@@ -312,6 +312,7 @@ function navigateToTag(tag) {
   updatePageMeta({ title: normalizedTag, description: `Posts tagged with ${normalizedTag} on Devit` });
   const main = $('#main');
   main.style.cssText = '';
+  main.style.overflow = '';  // restore from community view
   main.innerHTML = '';
   closeSearch?.();
   realtimeManager.cleanupByPrefix('view:');
@@ -3375,6 +3376,7 @@ async function openCommunity(communityId) {
 
   const main = $('#main');
   main.innerHTML = '';
+  main.style.overflow = 'hidden';  // community view manages its own scroll
 
   const textChannels = (channels || []).filter(c => c.type === 'text');
   const firstChannel = textChannels[0];
