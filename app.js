@@ -2025,16 +2025,22 @@ function initSwipeNavigation() {}
  * behaviour for the .disc-sidebar on mobile.
  */
 function initCommunitySidebarSwipe(view) {
-  // Only activate on touch devices / narrow screens
-  if (window.innerWidth > 640) return;
-
-  const sidebar  = view.querySelector('.disc-sidebar');
-  const chatArea = view.querySelector('#community-chat-area');
+  const sidebar = view.querySelector('.disc-sidebar');
   if (!sidebar) return;
 
-  // ── Backdrop ──────────────────────────────────────────────
+  const SIDEBAR_W  = 280;   // must match CSS width
+  const EDGE_ZONE  = 80;    // px from left edge that can start a swipe-open
+  const THRESHOLD  = 80;    // px travel to commit open/close
+  const VELOCITY_T = 0.25;  // px/ms fast-flick threshold
+
+  // ── Backdrop (shared across re-renders) ──────────────────
   let backdrop = document.getElementById('disc-sidebar-backdrop');
-  if (!backdrop) {
+  if (backdrop) {
+    // Remove old listeners by replacing node
+    const fresh = backdrop.cloneNode(false);
+    backdrop.replaceWith(fresh);
+    backdrop = fresh;
+  } else {
     backdrop = document.createElement('div');
     backdrop.id = 'disc-sidebar-backdrop';
     backdrop.className = 'disc-sidebar-backdrop';
@@ -2042,102 +2048,92 @@ function initCommunitySidebarSwipe(view) {
   }
 
   function openSidebar() {
+    sidebar.style.transition = '';
+    sidebar.style.transform  = '';
     sidebar.classList.add('sidebar-open');
-    backdrop.classList.add('active');
+    backdrop.style.display   = 'block';
+    // force reflow then animate opacity
+    backdrop.getBoundingClientRect();
+    backdrop.style.opacity   = '1';
     document.body.style.overflow = 'hidden';
   }
   function closeSidebar() {
+    sidebar.style.transition = '';
+    sidebar.style.transform  = '';
     sidebar.classList.remove('sidebar-open');
-    backdrop.classList.remove('active');
+    backdrop.style.opacity   = '0';
+    setTimeout(() => { backdrop.style.display = 'none'; }, 280);
     document.body.style.overflow = '';
   }
 
-  // Tap backdrop to close
   backdrop.addEventListener('click', closeSidebar);
 
-  // ── Touch tracking ────────────────────────────────────────
-  const EDGE_ZONE   = 28;   // px from left edge that starts an open gesture
-  const THRESHOLD   = 60;   // px drag distance to commit open/close
-  const VELOCITY_T  = 0.3;  // px/ms minimum velocity to commit early
-
+  // ── Touch state ───────────────────────────────────────────
   let startX = 0, startY = 0, startT = 0;
-  let tracking = false, axis = null; // axis: 'h' | 'v' | null
+  let dragging = false, axis = null;
 
-  const target = document;   // listen on document so the edge zone always fires
-
-  target.addEventListener('touchstart', e => {
+  // Always attach to document so edge swipes are never missed
+  function onTouchStart(e) {
     const t = e.touches[0];
     startX = t.clientX;
     startY = t.clientY;
     startT = Date.now();
     axis   = null;
 
-    const sidebarOpen = sidebar.classList.contains('sidebar-open');
-    // Start tracking if: swiping from left edge (open) OR sidebar is open (close)
-    if (startX <= EDGE_ZONE || sidebarOpen) {
-      tracking = true;
-    } else {
-      tracking = false;
-    }
-  }, { passive: true });
+    const isOpen = sidebar.classList.contains('sidebar-open');
+    // Activate: swipe right from edge (open) OR anywhere when already open (close)
+    dragging = isOpen || startX <= EDGE_ZONE;
+  }
 
-  target.addEventListener('touchmove', e => {
-    if (!tracking) return;
+  function onTouchMove(e) {
+    if (!dragging) return;
     const t  = e.touches[0];
     const dx = t.clientX - startX;
     const dy = t.clientY - startY;
 
-    // Lock axis on first significant movement
-    if (!axis) {
-      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
-        axis = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
-      }
+    if (!axis && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+      axis = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
     }
-
     if (axis !== 'h') return;
 
-    const sidebarOpen = sidebar.classList.contains('sidebar-open');
+    const isOpen = sidebar.classList.contains('sidebar-open');
 
-    if (!sidebarOpen && dx > 0) {
-      // Dragging right to open — live translate the sidebar
-      const clamped = Math.min(dx, 280);
+    if (!isOpen && dx > 0) {
+      const travel = Math.min(dx, SIDEBAR_W);
       sidebar.style.transition = 'none';
-      sidebar.style.transform  = `translateX(calc(-100% + ${clamped}px))`;
+      sidebar.style.transform  = `translateX(calc(-100% + ${travel}px))`;
       backdrop.style.display   = 'block';
-      backdrop.style.opacity   = String(Math.min(clamped / 280, 1) * 0.6);
-    } else if (sidebarOpen && dx < 0) {
-      // Dragging left to close
-      const clamped = Math.max(dx, -280);
+      backdrop.style.opacity   = String((travel / SIDEBAR_W) * 0.7);
+    } else if (isOpen && dx < 0) {
+      const travel = Math.max(dx, -SIDEBAR_W);
       sidebar.style.transition = 'none';
-      sidebar.style.transform  = `translateX(${clamped}px)`;
-      backdrop.style.opacity   = String((1 + clamped / 280) * 0.6);
+      sidebar.style.transform  = `translateX(${travel}px)`;
+      backdrop.style.opacity   = String((1 + travel / SIDEBAR_W) * 0.7);
     }
-  }, { passive: true });
+  }
 
-  target.addEventListener('touchend', e => {
-    if (!tracking || axis !== 'h') {
-      tracking = false; axis = null;
-      return;
-    }
+  function onTouchEnd(e) {
+    if (!dragging) return;
+    dragging = false;
 
-    const t       = e.changedTouches[0];
-    const dx      = t.clientX - startX;
-    const dt      = Date.now() - startT;
-    const vx      = Math.abs(dx) / dt;
-    const sidebarOpen = sidebar.classList.contains('sidebar-open');
+    if (axis !== 'h') { axis = null; return; }
+    axis = null;
 
-    // Restore transition for snap
-    sidebar.style.transition  = '';
-    sidebar.style.transform   = '';
-    backdrop.style.transition = '';
-    backdrop.style.opacity    = '';
+    const t  = e.changedTouches[0];
+    const dx = t.clientX - startX;
+    const dt = Math.max(Date.now() - startT, 1);
+    const vx = Math.abs(dx) / dt;
+    const isOpen = sidebar.classList.contains('sidebar-open');
 
-    if (!sidebarOpen) {
+    if (!isOpen) {
       if (dx > THRESHOLD || (dx > 20 && vx > VELOCITY_T)) {
         openSidebar();
       } else {
-        // Snap back
-        backdrop.style.display = 'none';
+        // Snap back closed
+        sidebar.style.transition = '';
+        sidebar.style.transform  = '';
+        backdrop.style.opacity   = '0';
+        setTimeout(() => { backdrop.style.display = 'none'; }, 280);
       }
     } else {
       if (dx < -THRESHOLD || (dx < -20 && vx > VELOCITY_T)) {
@@ -2146,20 +2142,22 @@ function initCommunitySidebarSwipe(view) {
         openSidebar(); // snap back open
       }
     }
+  }
 
-    tracking = false;
-    axis     = null;
-  }, { passive: true });
+  document.addEventListener('touchstart', onTouchStart, { passive: true });
+  document.addEventListener('touchmove',  onTouchMove,  { passive: true });
+  document.addEventListener('touchend',   onTouchEnd,   { passive: true });
 
-  // Close sidebar when a channel is tapped (mirrors Discord behaviour)
-  view.querySelectorAll('.disc-channel-item[data-chid]').forEach(item => {
-    item.addEventListener('click', () => {
-      if (window.innerWidth <= 640) closeSidebar();
-    });
-  });
+  // Clean up old listeners when community is navigated away
+  view._destroySwipe = () => {
+    document.removeEventListener('touchstart', onTouchStart);
+    document.removeEventListener('touchmove',  onTouchMove);
+    document.removeEventListener('touchend',   onTouchEnd);
+    closeSidebar();
+  };
 
-  // Expose close fn so join-button handler can call it too
   view._closeSidebar = closeSidebar;
+  view._openSidebar  = openSidebar;
 }
 
 /* ── Feed ───────────────────────────────────────────────────── */
@@ -3594,8 +3592,8 @@ async function openCommunity(communityId) {
       item.classList.add('active');
       const ch = (channels || []).find(c => c.id === item.dataset.chid);
       if (ch) renderChannelChat($('#community-chat-area'), ch);
-      // Auto-close sidebar drawer on mobile after channel tap
-      if (window.innerWidth <= 640 && view._closeSidebar) view._closeSidebar();
+      // Auto-close sidebar drawer after channel tap
+      if (view._closeSidebar) view._closeSidebar();
     });
   });
 

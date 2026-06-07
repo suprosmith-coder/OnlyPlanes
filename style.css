@@ -1040,15 +1040,46 @@ opacity: 0.09;
    ══════════════════════════════════════════════════════ */
 .community-view {
   display: flex; height: calc(100vh - var(--topbar-h)); overflow: hidden;
+  /* Sidebar is now a fixed overlay — community-chat takes full width */
+  position: relative;
+}
+.community-view .community-chat,
+#community-chat-area {
+  flex: 1;
+  min-width: 0;
 }
 
 /* ── Server Sidebar ─────────────────────────────────── */
 .disc-sidebar {
-  width: 240px; flex-shrink: 0;
+  width: 300px; flex-shrink: 0;
   background: #2b2d31;
   display: flex; flex-direction: column;
   overflow: hidden;
   border-right: 1px solid rgba(0,0,0,0.3);
+  /* Drawer mode: always fixed overlay, swipe to reveal */
+  position: fixed;
+  top: var(--topbar-h, 56px);
+  left: 0;
+  bottom: 0;
+  z-index: 500;
+  transform: translateX(-100%);
+  transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+  box-shadow: 4px 0 32px rgba(0,0,0,0.6);
+}
+.disc-sidebar.sidebar-open {
+  transform: translateX(0);
+}
+
+/* ── Sidebar backdrop (for swipe drawer) ─────────────────── */
+#disc-sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  top: var(--topbar-h, 56px);
+  background: rgba(0,0,0,0.65);
+  z-index: 499;
+  opacity: 0;
+  transition: opacity 0.28s ease;
 }
 
 .disc-server-header {
@@ -2431,45 +2462,21 @@ opacity: 0.09;
   .disc-members-panel { display: none; }
 
   /* ── Discord-style swipe-to-reveal sidebar drawer ── */
+  /* Sidebar becomes a fixed overlay drawer on mobile */
   .disc-sidebar {
     position: fixed;
     top: var(--topbar-h, 56px);
     left: 0;
     bottom: 0;
-    width: 280px;
+    width: 300px;
     z-index: 500;
     transform: translateX(-100%);
     transition: transform 0.28s cubic-bezier(.4,0,.2,1);
-    box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+    box-shadow: 4px 0 32px rgba(0,0,0,0.6);
     display: flex !important;
   }
   .disc-sidebar.sidebar-open {
     transform: translateX(0);
-  }
-  /* Dim overlay behind the drawer */
-  .disc-sidebar-backdrop {
-    display: none;
-    position: fixed;
-    inset: 0;
-    top: var(--topbar-h, 56px);
-    background: rgba(0,0,0,0.6);
-    z-index: 499;
-    opacity: 0;
-    transition: opacity 0.28s ease;
-  }
-  .disc-sidebar-backdrop.active {
-    display: block;
-    opacity: 1;
-  }
-  /* Edge touch target hint */
-  .community-view::before {
-    content: '';
-    position: fixed;
-    left: 0;
-    top: var(--topbar-h, 56px);
-    bottom: 0;
-    width: 14px;
-    z-index: 490;
   }
   /* Mobile DM: full-width list; dm-view slides in as an overlay panel */
   .messages-layout .conversations-list { width: 100%; flex-shrink: 0; }
