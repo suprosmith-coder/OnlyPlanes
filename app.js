@@ -3379,41 +3379,86 @@ async function openCommunity(communityId) {
   const textChannels = (channels || []).filter(c => c.type === 'text');
   const firstChannel = textChannels[0];
 
+  const userProfile = State.profile;
+  const userColor = avatarColor(userProfile?.display_name || userProfile?.username || '?');
+  const userInitials = avatarInitials(userProfile?.display_name || userProfile?.username || '?');
+
   const view = el('div', 'community-view');
   view.innerHTML = `
-    <div class="community-sidebar">
-      <div class="community-header">
-        <div style="font-size:28px;margin-bottom:4px">${community.icon}</div>
-        <div class="community-header-name">${community.name}</div>
-        <div class="community-header-members">👥 ${fmtNum(community.members_count || 0)} members</div>
-        ${!isJoined ? `<button id="join-community-btn" class="auth-btn-primary" style="margin-top:8px;padding:6px 14px;font-size:12px;width:100%">Join Community</button>` : ''}
+    <div class="disc-sidebar">
+      <!-- Server Header -->
+      <div class="disc-server-header" style="--server-color:${community.color || '#5865f2'}">
+        <div class="disc-server-banner">
+          <div class="disc-server-banner-icon">${community.icon}</div>
+          <div class="disc-server-banner-glow" style="background:radial-gradient(ellipse at 30% 50%, ${community.color || '#5865f2'}44 0%, transparent 70%)"></div>
+        </div>
+        <div class="disc-server-name-row">
+          <span class="disc-server-name">${community.name}</span>
+          <i class="fa-solid fa-chevron-down disc-server-chevron"></i>
+        </div>
+        <div class="disc-server-meta">${fmtNum(community.members_count || 0)} members</div>
+        ${!isJoined ? `<button id="join-community-btn" class="disc-join-btn"><i class="fa-solid fa-user-plus"></i> Join Server</button>` : ''}
       </div>
-      <div class="channel-category">Text Channels</div>
-      ${textChannels.map(ch => `
-        <div class="channel-item ${firstChannel?.id === ch.id ? 'active' : ''}" data-chid="${ch.id}">
-          <span class="channel-icon">#</span>
-          ${ch.name}
+
+      <!-- Channels scroll area -->
+      <div class="disc-channels-scroll">
+        <div class="disc-category-block">
+          <div class="disc-category-header" id="disc-cat-text">
+            <i class="fa-solid fa-chevron-down disc-cat-arrow"></i>
+            <span>Text Channels</span>
+            ${community.owner_id === State.user.id ? `<button class="disc-add-channel-btn" id="add-channel-btn" title="Add channel"><i class="fa-solid fa-plus"></i></button>` : ''}
+          </div>
+          <div class="disc-channel-list" id="disc-channel-list-text">
+            ${textChannels.map(ch => `
+              <div class="disc-channel-item ${firstChannel?.id === ch.id ? 'active' : ''}" data-chid="${ch.id}">
+                <span class="disc-hash">#</span>
+                <span class="disc-channel-name">${ch.name}</span>
+                <span class="disc-channel-unread" style="display:none"></span>
+              </div>
+            `).join('')}
+          </div>
         </div>
-      `).join('')}
-      ${community.owner_id === State.user.id ? `
-        <div class="channel-item" id="add-channel-btn" style="color:var(--text-muted);font-size:12px;margin-top:4px">
-          <i class="fa-solid fa-plus"></i> Add channel
+      </div>
+
+      <!-- User Panel -->
+      <div class="disc-user-panel">
+        <div class="disc-user-avatar-wrap">
+          <div class="disc-user-avatar" style="background:${userColor}">${userInitials}</div>
+          <div class="disc-user-status-dot online"></div>
         </div>
-      ` : ''}
+        <div class="disc-user-info">
+          <div class="disc-user-name">${userProfile?.display_name || userProfile?.username || 'User'}</div>
+          <div class="disc-user-tag">#${(userProfile?.username || 'user').slice(0,8)}</div>
+        </div>
+        <div class="disc-user-controls">
+          <button class="disc-icon-btn" title="Mute"><i class="fa-solid fa-microphone-slash"></i></button>
+          <button class="disc-icon-btn" title="Settings"><i class="fa-solid fa-gear"></i></button>
+        </div>
+      </div>
     </div>
+
     <div class="community-chat" id="community-chat-area"></div>
-    <div class="community-members-panel" id="members-panel"></div>
+    <div class="disc-members-panel" id="members-panel"></div>
   `;
 
   main.appendChild(view);
 
-  $$('.channel-item[data-chid]', view).forEach(item => {
+  $$('.disc-channel-item[data-chid]', view).forEach(item => {
     item.addEventListener('click', () => {
-      $$('.channel-item', view).forEach(c => c.classList.remove('active'));
+      $$('.disc-channel-item', view).forEach(c => c.classList.remove('active'));
       item.classList.add('active');
       const ch = (channels || []).find(c => c.id === item.dataset.chid);
       if (ch) renderChannelChat($('#community-chat-area'), ch);
     });
+  });
+
+  // Category collapse toggle
+  $('#disc-cat-text', view)?.addEventListener('click', e => {
+    if (e.target.closest('#add-channel-btn')) return;
+    const list = $('#disc-channel-list-text', view);
+    const arrow = $('#disc-cat-text .disc-cat-arrow', view);
+    list?.classList.toggle('collapsed');
+    arrow?.classList.toggle('collapsed');
   });
 
   const joinBtn = $('#join-community-btn', view);
@@ -3466,22 +3511,37 @@ async function openCommunity(communityId) {
 async function renderChannelChat(container, channel) {
   State.currentChannel = channel;
   container.innerHTML = `
-    <div class="community-chat-header">
-      <span style="color:var(--text-muted);font-size:15px">#</span>
-      <h3>${channel.name}</h3>
-      <div style="margin-left:auto;display:flex;gap:8px">
-        <span style="font-size:12px;color:var(--text-muted)" id="channel-member-count"></span>
-        <button id="pin-resource-btn" title="Pin a resource" style="font-size:12px;color:var(--text-muted);padding:2px 6px;border-radius:6px;transition:color 0.15s" onmouseover="this.style.color='var(--amber)'" onmouseout="this.style.color='var(--text-muted)'"><i class="fa-solid fa-thumbtack"></i></button>
+    <div class="disc-chat-header">
+      <div class="disc-chat-header-left">
+        <span class="disc-chat-hash">#</span>
+        <h3 class="disc-chat-title">${channel.name}</h3>
+        ${channel.topic ? `<div class="disc-chat-divider"></div><span class="disc-chat-topic">${escapeHtml(channel.topic)}</span>` : ''}
+      </div>
+      <div class="disc-chat-header-right">
+        <button id="pin-resource-btn" class="disc-header-btn" title="Pin a resource"><i class="fa-solid fa-thumbtack"></i></button>
+        <span class="disc-header-member-count" id="channel-member-count"></span>
+        <button class="disc-header-btn disc-header-btn--active" id="toggle-members-btn" title="Toggle Members"><i class="fa-solid fa-users"></i></button>
+        <button class="disc-header-btn" title="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
       </div>
     </div>
-    <div id="pinned-resources-bar" style="display:none;padding:8px 14px;background:rgba(251,191,36,0.05);border-bottom:1px solid rgba(251,191,36,0.12)"></div>
-    <div class="chat-messages" id="chat-messages-list"></div>
-    <div class="chat-input-area">
-      <div class="chat-input-wrap">
-        <input class="chat-input" id="channel-chat-input" type="text" placeholder="Message #${channel.name}">
-        <button class="chat-send-btn" id="channel-send-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        </button>
+    <div id="pinned-resources-bar" style="display:none;padding:8px 16px;background:rgba(251,191,36,0.05);border-bottom:1px solid rgba(251,191,36,0.12)"></div>
+    <div class="disc-chat-messages" id="chat-messages-list">
+      <div class="disc-channel-welcome">
+        <div class="disc-welcome-hash">#</div>
+        <h3 class="disc-welcome-title">Welcome to #${escapeHtml(channel.name)}!</h3>
+        <p class="disc-welcome-sub">This is the start of the <strong>#${escapeHtml(channel.name)}</strong> channel.</p>
+      </div>
+    </div>
+    <div class="disc-chat-input-area">
+      <div class="disc-chat-input-wrap">
+        <button class="disc-attach-btn" title="Attach file"><i class="fa-solid fa-plus"></i></button>
+        <input class="disc-chat-input" id="channel-chat-input" type="text" placeholder="Message #${escapeHtml(channel.name)}" maxlength="2000" autocomplete="off">
+        <div class="disc-input-right">
+          <button class="disc-emoji-btn" title="Emoji"><i class="fa-regular fa-face-smile"></i></button>
+          <button class="disc-send-btn" id="channel-send-btn" title="Send">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -3539,6 +3599,15 @@ async function renderChannelChat(container, channel) {
     });
   });
 
+  // Toggle members panel
+  container.querySelector('#toggle-members-btn')?.addEventListener('click', () => {
+    const panel = document.getElementById('members-panel');
+    if (panel) {
+      panel.classList.toggle('hidden');
+      container.querySelector('#toggle-members-btn')?.classList.toggle('disc-header-btn--active');
+    }
+  });
+
   const msgList = $('#chat-messages-list', container);
 
   // Load existing messages
@@ -3566,8 +3635,8 @@ async function renderChannelChat(container, channel) {
       if (msg.author_id === State.user.id) return; // own messages shown immediately
       const { data: profile } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').eq('id', msg.author_id).single();
       msg.profiles = profile;
-      const prev = msgList.lastElementChild;
-      const isCont = prev && prev.dataset.uid === msg.author_id;
+      const prev = msgList.lastElementChild?.dataset?.uid ? msgList.lastElementChild : null;
+      const isCont = prev && prev.dataset.uid === msg.author_id && !prev.classList.contains('disc-channel-welcome');
       msgList.appendChild(buildChannelMessage(msg, isCont));
       msgList.scrollTop = msgList.scrollHeight;
     },
@@ -3591,7 +3660,7 @@ async function renderChannelChat(container, channel) {
     if (msgErr?.blocked) return;
     if (msg) {
       msg.profiles = State.profile;
-      const lastMsg = msgList.lastElementChild;
+      const lastMsg = msgList.lastElementChild?.dataset?.uid ? msgList.lastElementChild : null;
       const isCont = lastMsg && lastMsg.dataset.uid === State.user.id;
       msgList.appendChild(buildChannelMessage(msg, isCont));
       msgList.scrollTop = msgList.scrollHeight;
@@ -3605,16 +3674,25 @@ async function renderChannelChat(container, channel) {
 function buildChannelMessage(msg, isContinuation) {
   const profile = msg.profiles;
   const color = avatarColor(profile?.display_name || profile?.username || '?');
-  const msgEl = el('div', `msg ${isContinuation ? 'is-continuation' : ''}`);
+  const name = profile?.display_name || profile?.username || 'User';
+  const msgEl = el('div', `disc-msg${isContinuation ? ' disc-msg--cont' : ''}`);
   msgEl.dataset.uid = profile?.id || '';
+
+  const avatarHtml = profile?.avatar_url
+    ? `<img src="${escapeHtml(profile.avatar_url)}" alt="${escapeHtml(name)}" class="disc-msg-avatar-img">`
+    : `<div class="disc-msg-avatar" style="background:${color}">${avatarInitials(name)}</div>`;
+
   msgEl.innerHTML = `
-    <div class="msg-avatar" style="background:${color};display:${isContinuation ? 'none' : 'flex'};align-items:center;justify-content:center;font-weight:700;font-size:13px;color:white">${avatarInitials(profile?.display_name || profile?.username || '?')}</div>
-    <div class="msg-body">
-      ${!isContinuation ? `<div class="msg-header"><span class="msg-author" style="color:${color}">${profile?.display_name || profile?.username || 'User'}</span><span class="msg-time">${timeAgo(msg.created_at)}</span></div>` : ''}
-      <div class="msg-text">${escapeHtml(msg.content)}</div>
+    <div class="disc-msg-avatar-col">
+      ${isContinuation
+        ? `<span class="disc-msg-hover-time">${timeAgo(msg.created_at)}</span>`
+        : avatarHtml}
+    </div>
+    <div class="disc-msg-body">
+      ${!isContinuation ? `<div class="disc-msg-header"><span class="disc-msg-author" style="color:${color}">${escapeHtml(name)}</span><span class="disc-msg-time">${timeAgo(msg.created_at)}</span></div>` : ''}
+      <div class="disc-msg-text">${escapeHtml(msg.content)}</div>
     </div>
   `;
-  if (isContinuation) msgEl.style.paddingLeft = '52px';
   return msgEl;
 }
 
@@ -3629,33 +3707,37 @@ async function renderCommunityMembers(container, communityId) {
   const online = (members || []).filter(m => State.onlineUsers.has(m.user_id));
   const offline = (members || []).filter(m => !State.onlineUsers.has(m.user_id));
 
-  let html = `<div class="members-section-label">Online — ${online.length}</div>`;
-  online.forEach(m => {
+  function memberHtml(m, isOnline) {
     const p = m.profiles;
     const color = avatarColor(p?.display_name || p?.username || '?');
-    html += `<div class="member-item">
-      <div class="member-avatar-wrap">
-        <div class="member-avatar" style="background:${color}">${avatarInitials(p?.display_name || p?.username || '?')}</div>
-        <div class="member-status online"></div>
-      </div>
-      <span class="member-name">${p?.display_name || p?.username || 'User'}</span>
-      ${m.role === 'owner' ? '<span style="font-size:10px;color:var(--amber);margin-left:auto">owner</span>' : ''}
-    </div>`;
-  });
-  html += `<div class="members-section-label" style="margin-top:8px">Offline — ${offline.length}</div>`;
-  offline.slice(0, 10).forEach(m => {
-    const p = m.profiles;
-    const color = avatarColor(p?.display_name || p?.username || '?');
-    html += `<div class="member-item" style="opacity:0.5">
-      <div class="member-avatar-wrap">
-        <div class="member-avatar" style="background:${color}">${avatarInitials(p?.display_name || p?.username || '?')}</div>
-        <div class="member-status offline"></div>
-      </div>
-      <span class="member-name">${p?.display_name || p?.username || 'User'}</span>
-    </div>`;
-  });
+    const name = p?.display_name || p?.username || 'User';
+    const avatarContent = p?.avatar_url
+      ? `<img src="${escapeHtml(p.avatar_url)}" class="disc-mem-avatar-img" alt="">`
+      : `<span>${avatarInitials(name)}</span>`;
+    return `
+      <div class="disc-member-item${!isOnline ? ' disc-member-item--offline' : ''}">
+        <div class="disc-mem-avatar-wrap">
+          <div class="disc-mem-avatar" style="background:${color}">${avatarContent}</div>
+          <div class="disc-mem-status ${isOnline ? 'online' : 'offline'}"></div>
+        </div>
+        <div class="disc-mem-info">
+          <div class="disc-mem-name">${escapeHtml(name)}</div>
+          ${m.role === 'owner' ? `<div class="disc-mem-role"><i class="fa-solid fa-crown" style="font-size:8px;color:var(--amber)"></i> Owner</div>` : ''}
+        </div>
+      </div>`;
+  }
 
-  container.innerHTML = html;
+  container.innerHTML = `
+    <div class="disc-members-header">Members — ${(members || []).length}</div>
+    ${online.length ? `
+      <div class="disc-mem-section-label">ONLINE — ${online.length}</div>
+      ${online.map(m => memberHtml(m, true)).join('')}
+    ` : ''}
+    ${offline.length ? `
+      <div class="disc-mem-section-label" style="margin-top:16px">OFFLINE — ${offline.length}</div>
+      ${offline.slice(0, 10).map(m => memberHtml(m, false)).join('')}
+    ` : ''}
+  `;
 }
 
 /* ── Notifications ──────────────────────────────────────────── */
