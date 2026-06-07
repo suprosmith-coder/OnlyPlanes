@@ -3623,33 +3623,35 @@ async function renderChannelChat(container, channel) {
 
   const msgList = $('#chat-messages-list', container);
 
-  // Load existing messages
+  // Load messages — no FK join (mirrors DM pattern: fetch messages then profiles separately)
   const { data: messages, error: msgLoadErr } = await sb
     .from('op_channel_messages')
-    .select('id, content, created_at, author_id, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
+    .select('id, content, created_at, author_id')
     .eq('channel_id', channel.id)
     .order('created_at', { ascending: true })
     .limit(80);
 
   if (msgLoadErr) console.error('[OnlyPlanes] Failed to load channel messages:', msgLoadErr);
 
-  // If the FK join returned null profiles, batch-fetch them as a fallback
   const msgsToRender = messages || [];
-  const missingProfileIds = [...new Set(
-    msgsToRender.filter(m => !m.profiles && m.author_id).map(m => m.author_id)
-  )];
-  if (missingProfileIds.length) {
-    const { data: fallbackProfiles } = await sb
+
+  // Batch-fetch all unique author profiles (same idea as DM's pre-fetched `other`)
+  const authorIds = [...new Set(msgsToRender.map(m => m.author_id).filter(Boolean))];
+  const profileMap = {};
+  if (authorIds.length) {
+    const { data: authorProfiles } = await sb
       .from('op_profiles')
       .select('id, username, display_name, avatar_url')
-      .in('id', missingProfileIds);
-    const profileMap = Object.fromEntries((fallbackProfiles || []).map(p => [p.id, p]));
-    msgsToRender.forEach(m => { if (!m.profiles && m.author_id) m.profiles = profileMap[m.author_id] || null; });
+      .in('id', authorIds);
+    (authorProfiles || []).forEach(p => { profileMap[p.id] = p; });
   }
+  // Always include own profile so sent messages render immediately
+  if (State.profile?.id) profileMap[State.profile.id] = State.profile;
 
   msgsToRender.forEach((msg, i) => {
+    msg.profiles = profileMap[msg.author_id] || null;
     const prev = msgsToRender[i - 1];
-    const isCont = prev && prev.profiles?.id === msg.profiles?.id;
+    const isCont = prev && prev.author_id === msg.author_id;
     msgList.appendChild(buildChannelMessage(msg, isCont));
   });
   msgList.scrollTop = msgList.scrollHeight;
