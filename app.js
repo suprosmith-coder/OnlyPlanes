@@ -201,6 +201,28 @@ async function decrementFollowCounts(targetId, followerId) {
   }
 }
 
+/* Fetch real follower/following counts from DB and stamp them into the DOM */
+async function _refreshFollowCountsInDOM(main, targetId) {
+  // Fetch target profile counts
+  const [{ data: target }, { data: self }] = await Promise.all([
+    sb.from('op_profiles').select('followers_count, following_count').eq('id', targetId).single(),
+    State.user?.id
+      ? sb.from('op_profiles').select('following_count').eq('id', State.user.id).single()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  if (target) {
+    // Profile page stat pills: Following[0], Followers[1], Posts[2]
+    const statEls = main.querySelectorAll('.profile-stat strong');
+    if (statEls[1]) statEls[1].textContent = fmtNum(target.followers_count || 0);
+  }
+
+  if (self && State.profile) {
+    State.profile.following_count = self.following_count || 0;
+    _syncProfileStatDOM();
+  }
+}
+
 /* Sync the current user's stat numbers anywhere they appear in the DOM
    (topbar mini-profile, own profile page stats, quick-view card) */
 function _syncProfileStatDOM() {
@@ -4346,27 +4368,23 @@ async function renderProfile(main, userId = null) {
       if (followState) {
         const { error } = await sb.from('op_follows').delete().eq('follower_id', State.user.id).eq('following_id', targetId);
         if (!error) {
-          await decrementFollowCounts(targetId, State.user.id);
           followState = false;
           followBtn.textContent = 'Follow';
           followBtn.className = 'profile-action-btn primary';
           toast('Unfollowed', 'user-minus');
-          // Update target's Followers count in DOM (statEls[1])
-          const statEls = main.querySelectorAll('.profile-stat strong');
-          if (statEls[1]) statEls[1].textContent = fmtNum(Math.max(0, (parseInt(statEls[1].textContent.replace(/[^\d]/g,'')) || 1) - 1));
+          await decrementFollowCounts(targetId, State.user.id);
+          await _refreshFollowCountsInDOM(main, targetId);
         }
       } else {
         const { error } = await sb.from('op_follows').insert({ follower_id: State.user.id, following_id: targetId });
         if (!error || error.code === '23505') {
-          await incrementFollowCounts(targetId, State.user.id);
-          await sb.from('op_notifications').insert({ user_id: targetId, actor_id: State.user.id, type: 'follow' });
           followState = true;
           followBtn.textContent = 'Unfollow';
           followBtn.className = 'profile-action-btn secondary';
           toast('Followed!', 'user-check');
-          // Update target's Followers count in DOM (statEls[1])
-          const statEls = main.querySelectorAll('.profile-stat strong');
-          if (statEls[1]) statEls[1].textContent = fmtNum((parseInt(statEls[1].textContent.replace(/[^\d]/g,'')) || 0) + 1);
+          await incrementFollowCounts(targetId, State.user.id);
+          await sb.from('op_notifications').insert({ user_id: targetId, actor_id: State.user.id, type: 'follow' });
+          await _refreshFollowCountsInDOM(main, targetId);
         } else {
           toast('Something went wrong', 'circle-exclamation');
         }
