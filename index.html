@@ -860,10 +860,34 @@
     }
 
     /* ── Spotting Log ────────────────────────────────── */
-    let spotLog = JSON.parse(localStorage.getItem('op-spotlog') || '[]');
+    // In-memory array — seeded from Supabase on initSpotLog
+    let spotLog = [];
+
+    async function loadSpotLog() {
+      if (!window.sb || !window.State?.user?.id) {
+        // Guest fallback: keep array empty (no localStorage)
+        return;
+      }
+      try {
+        const { data } = await window.sb.from('op_spotlog')
+          .select('id, registration, aircraft_type, category, airport, spotted_at, ts')
+          .eq('user_id', window.State.user.id)
+          .order('ts', { ascending: false })
+          .limit(500);
+        spotLog = (data || []).map(r => ({
+          _id:      r.id,
+          reg:      r.registration,
+          type:     r.aircraft_type || 'Unknown type',
+          category: r.category || 'default',
+          airport:  r.airport || '',
+          date:     new Date(r.spotted_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' }),
+          ts:       r.ts || new Date(r.spotted_at).getTime(),
+        }));
+      } catch(e) { console.warn('[Spotlog] Load failed', e); }
+    }
 
     function saveSpotLog() {
-      try { localStorage.setItem('op-spotlog', JSON.stringify(spotLog)); } catch(e) {}
+      // No-op: writes go directly to Supabase in the addBtn handler
     }
 
     function renderSpotLog() {
@@ -892,7 +916,7 @@
       // Re-render
       list.querySelectorAll('.spotlog-entry').forEach(el => el.remove());
       const icons = { widebody: '✈️', narrowbody: '🛫', regional: '🛩️', military: '🛡️', ga: '⛽', default: '✈️' };
-      spotLog.slice().reverse().forEach(entry => {
+      spotLog.slice().forEach(entry => {
         const div = document.createElement('div');
         div.className = 'spotlog-entry';
         div.innerHTML = `
@@ -915,29 +939,45 @@
       const addBtn = document.getElementById('sl-add-btn');
       if (!addBtn) return;
 
+      // Load from Supabase when panel opens
+      loadSpotLog().then(renderSpotLog);
+
       input?.addEventListener('input', () => { input.value = input.value.toUpperCase(); });
       airportInput?.addEventListener('input', () => { airportInput.value = airportInput.value.toUpperCase(); });
 
-      addBtn.addEventListener('click', () => {
+      addBtn.addEventListener('click', async () => {
         const reg = input?.value.trim();
         if (!reg || reg.length < 2) return;
         const data = lookupTailNum(reg);
         const airport = airportInput?.value.trim();
         const now = new Date();
-        spotLog.push({
+        const entry = {
           reg: reg.toUpperCase(),
           type: data?.type || 'Unknown type',
           category: data?.category || 'default',
           airport: airport || '',
           date: now.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' }),
           ts: now.getTime()
-        });
-        saveSpotLog();
+        };
+        spotLog.unshift(entry); // optimistic prepend
         renderSpotLog();
         if (input) input.value = '';
         if (airportInput) airportInput.value = '';
-        // Toast
         showFeatureToast(`✈ ${reg.toUpperCase()} logged to your spotting list`);
+
+        // Persist to Supabase (fire-and-forget)
+        if (window.sb && window.State?.user?.id) {
+          const { data: row, error } = await window.sb.from('op_spotlog').insert({
+            user_id:      window.State.user.id,
+            registration: entry.reg,
+            aircraft_type: entry.type,
+            category:     entry.category,
+            airport:      entry.airport || null,
+            spotted_at:   now.toISOString(),
+            ts:           entry.ts,
+          }).select('id').single();
+          if (!error && row) entry._id = row.id;
+        }
       });
 
       // Filter chips

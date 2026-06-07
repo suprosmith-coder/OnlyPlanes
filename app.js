@@ -1086,9 +1086,18 @@ async function buildApp() {
   // Build UI immediately — don't let DB schema check block nav from rendering
   buildTopbar();
   buildSidebar();
-  // Restore sidebar collapsed state from localStorage
+  // Restore sidebar collapsed state from Supabase (fall back to localStorage for instant paint)
   if (localStorage.getItem('devit-sidebar-collapsed') === '1') {
     document.getElementById('sidebar')?.classList.add('sidebar-collapsed');
+  }
+  if (State.user?.id && !State.isGuest) {
+    sb.from('op_user_preferences').select('sidebar_collapsed').eq('user_id', State.user.id).single()
+      .then(({ data }) => {
+        if (data != null) {
+          const sidebar = document.getElementById('sidebar');
+          if (sidebar) sidebar.classList.toggle('sidebar-collapsed', !!data.sidebar_collapsed);
+        }
+      }).catch(() => {});
   }
   buildRightbar();
   initBottomNav();
@@ -1586,16 +1595,25 @@ function buildTopbar() {
   // Theme toggle
   const themeToggleBtn = $('#theme-toggle');
   if (themeToggleBtn) {
-    const applyTheme = (theme) => {
+    const applyTheme = (theme, persist = true) => {
       document.documentElement.setAttribute('data-theme', theme);
-      localStorage.setItem('devit-theme', theme);
       const icon = themeToggleBtn.querySelector('i');
       if (icon) icon.className = theme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
       themeToggleBtn.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+      if (persist && State.user?.id && !State.isGuest) {
+        // fire-and-forget upsert into op_user_preferences
+        sb.rpc('set_user_preference', { p_theme: theme }).catch(() => {});
+      }
     };
-    // Init from saved preference
-    const savedTheme = localStorage.getItem('devit-theme') || 'dark';
-    applyTheme(savedTheme);
+    // Init from Supabase (fall back to localStorage for instant paint, then patch)
+    const localTheme = localStorage.getItem('devit-theme') || 'dark';
+    applyTheme(localTheme, false); // instant paint — no persist
+    if (State.user?.id && !State.isGuest) {
+      sb.from('op_user_preferences').select('theme').eq('user_id', State.user.id).single()
+        .then(({ data }) => {
+          if (data?.theme) applyTheme(data.theme, false);
+        }).catch(() => {});
+    }
     themeToggleBtn.addEventListener('click', () => {
       const current = document.documentElement.getAttribute('data-theme') || 'dark';
       applyTheme(current === 'dark' ? 'light' : 'dark');
@@ -1698,10 +1716,13 @@ function closeSearch() {
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
   const collapsed = sidebar.classList.toggle('sidebar-collapsed');
-  localStorage.setItem('devit-sidebar-collapsed', collapsed ? '1' : '0');
   // Update aria-label for accessibility
   const hamBtn = sidebar.querySelector('#sidebar-ham-btn');
   if (hamBtn) hamBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+  // Persist to Supabase (fire-and-forget)
+  if (State.user?.id && !State.isGuest) {
+    sb.rpc('set_user_preference', { p_sidebar_collapsed: collapsed }).catch(() => {});
+  }
 }
 
 function buildSidebar() {
@@ -2299,13 +2320,15 @@ async function loadPosts(container, stackFilter = '') {
     );
   }
 
-  // Get which posts user liked/bookmarked
+  // Get which posts user liked/bookmarked — also fetch vote direction for up/down vote UI
   const postIds = filteredPosts.map(p => p.id);
-  let likedIds = new Set(), bookmarkedIds = new Set();
+  let likedIds = new Set(), bookmarkedIds = new Set(), voteMap = {};
   if (postIds.length && State.user?.id) {
-    const { data: likes } = await sb.from('op_post_likes').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
+    const { data: likes } = await sb.from('op_post_likes').select('post_id, vote').eq('user_id', State.user.id).in('post_id', postIds);
     const { data: bookmarks } = await sb.from('op_bookmarks').select('post_id').eq('user_id', State.user.id).in('post_id', postIds);
     likedIds = new Set((likes || []).map(l => l.post_id));
+    // voteMap: { [post_id]: 1 | -1 }  — used by the UpVote/DownVote patch
+    (likes || []).forEach(l => { if (l.vote != null) voteMap[l.post_id] = l.vote; });
     bookmarkedIds = new Set((bookmarks || []).map(b => b.post_id));
   }
 
@@ -2320,7 +2343,7 @@ async function loadPosts(container, stackFilter = '') {
   }
 
   filteredPosts.forEach(post => {
-    const card = buildPostCard(post, post.profiles, likedIds.has(post.id), bookmarkedIds.has(post.id));
+    const card = buildPostCard(post, post.profiles, likedIds.has(post.id), bookmarkedIds.has(post.id), voteMap);
     container.appendChild(card);
   });
 }
@@ -7914,17 +7937,31 @@ function tryInitDigest() {
    FEATURE 9 — Reading time + post views counter
    ══════════════════════════════════════════════════════════════ */
 
-const viewedPosts = new Set(
-  JSON.parse(localStorage.getItem('devit-viewed-posts') || '[]')
-);
+// In-memory dedup set — seeded from Supabase on first use (see _ensureViewedPostsLoaded)
+const viewedPosts = new Set();
+let _viewedPostsLoaded = false;
+
+async function _ensureViewedPostsLoaded() {
+  if (_viewedPostsLoaded || !State.user?.id || State.isGuest) return;
+  _viewedPostsLoaded = true;
+  try {
+    const { data } = await sb.from('op_post_views').select('post_id').eq('user_id', State.user.id);
+    (data || []).forEach(r => viewedPosts.add(r.post_id));
+  } catch(_) {}
+}
 
 async function recordPostView(postId) {
+  await _ensureViewedPostsLoaded();
   if (viewedPosts.has(postId)) return;
   viewedPosts.add(postId);
-  try {
-    localStorage.setItem('devit-viewed-posts', JSON.stringify([...viewedPosts].slice(-500)));
-  } catch(_) {}
-  // Increment in Supabase (fire-and-forget with RPC if available, else update)
+  // Persist view to Supabase (fire-and-forget)
+  if (State.user?.id && !State.isGuest) {
+    sb.from('op_post_views').upsert(
+      { user_id: State.user.id, post_id: postId },
+      { onConflict: 'user_id,post_id' }
+    ).catch(() => {});
+  }
+  // Increment view counter on the post
   try {
     await sb.rpc('increment_post_views', { post_id: postId });
   } catch(_) {
@@ -8474,7 +8511,7 @@ function _timeAgo(ts) {
 
 const _origBuildPostCard = window.buildPostCard;
 
-window.buildPostCard = function(post, profile, isLiked = false, isBookmarked = false) {
+window.buildPostCard = function(post, profile, isLiked = false, isBookmarked = false, voteMap = {}) {
   // Call original to get the card
   const card = _origBuildPostCard.call(this, post, profile, isLiked, isBookmarked);
   if (!card) return card;
@@ -8485,10 +8522,10 @@ window.buildPostCard = function(post, profile, isLiked = false, isBookmarked = f
     const actionsRow = likeBtn.closest('.post-actions');
     const likeCount  = parseInt(likeBtn.querySelector('.like-count')?.textContent || '0') || 0;
 
-    // Retrieve any stored vote from sessionStorage for optimistic UI
-    const storedVote  = sessionStorage.getItem(`vote:${post.id}`) || 'none'; // 'up'|'down'|'none'
-    const storedDelta = sessionStorage.getItem(`votedelta:${post.id}`);
-    const displayScore = storedDelta !== null ? likeCount + parseInt(storedDelta) : likeCount;
+    // Resolve vote state from DB-backed voteMap (1 = up, -1 = down, absent = none)
+    const dbVote = voteMap[post.id];
+    const storedVote  = dbVote === 1 ? 'up' : dbVote === -1 ? 'down' : 'none';
+    const displayScore = likeCount; // score already reflects DB state
 
     const voteGroup = document.createElement('span');
     voteGroup.className = 'vote-group';
@@ -8527,8 +8564,7 @@ window.buildPostCard = function(post, profile, isLiked = false, isBookmarked = f
       downBtn.querySelector('svg').setAttribute('fill', voteState === 'down' ? 'currentColor' : 'none');
       scoreEl.textContent = fmtNum(voteScore);
       scoreEl.className = `vote-score ${voteScore > 0 ? 'positive' : voteScore < 0 ? 'negative' : ''}`;
-      sessionStorage.setItem(`vote:${post.id}`, voteState);
-      sessionStorage.setItem(`votedelta:${post.id}`, voteScore - likeCount);
+      // vote state is persisted directly in op_post_likes — no sessionStorage needed
     }
 
     upBtn.addEventListener('click', async e => {
