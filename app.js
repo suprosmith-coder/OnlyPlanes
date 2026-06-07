@@ -205,13 +205,22 @@ async function decrementFollowCounts(targetId, followerId) {
    (topbar mini-profile, own profile page stats, quick-view card) */
 function _syncProfileStatDOM() {
   if (!State.profile) return;
-  // Own profile page — only if we're viewing it
+  // Own profile page stat pills (Following[0], Followers[1], Posts[2])
   const main = document.getElementById('main');
   if (main) {
     const statEls = main.querySelectorAll('.profile-stat strong');
-    // Order in renderProfile: Following [0], Followers [1], Posts [2]
     if (statEls[0]) statEls[0].textContent = fmtNum(State.profile.following_count || 0);
     if (statEls[1]) statEls[1].textContent = fmtNum(State.profile.followers_count || 0);
+  }
+  // Quick-view overlay — update own following count if own card is open
+  const pqvOverlay = document.getElementById('profile-quick-view-overlay');
+  if (pqvOverlay && pqvOverlay.style.display !== 'none') {
+    // The quick view shows target's stats; if target === self, sync both
+    const strongs = pqvOverlay.querySelectorAll('strong');
+    if (strongs.length >= 2 && pqvOverlay.dataset.uid === State.user?.id) {
+      strongs[0].textContent = fmtNum(State.profile.followers_count || 0);
+      strongs[1].textContent = fmtNum(State.profile.following_count || 0);
+    }
   }
 }
 
@@ -5053,14 +5062,15 @@ function openProfileQuickView(userId) {
       let fState = isFollowing;
       followBtn.onclick = async () => {
         followBtn.disabled = true;
+        // strongs[0] = Followers count of target, strongs[1] = Following count of target
+        const strongs = card.querySelectorAll('strong');
+        const follEl  = strongs[0]; // target's Followers
         if (fState) {
           const { error } = await sb.from('op_follows').delete().eq('follower_id', State.user.id).eq('following_id', userId);
           if (!error) {
             await decrementFollowCounts(userId, State.user.id);
             fState = false; followBtn.textContent = 'Follow'; followBtn.className = 'profile-action-btn primary';
             toast('Unfollowed', 'user-minus');
-            // Update follower count in the quick card
-            const follEl = card.querySelector('strong');
             if (follEl) follEl.textContent = fmtNum(Math.max(0, (parseInt(follEl.textContent.replace(/[^\d]/g,'')) || 1) - 1));
           }
         } else {
@@ -5070,7 +5080,6 @@ function openProfileQuickView(userId) {
             await sb.from('op_notifications').insert({ user_id: userId, actor_id: State.user.id, type: 'follow' });
             fState = true; followBtn.textContent = 'Unfollow'; followBtn.className = 'profile-action-btn secondary';
             toast('Followed!', 'user-check');
-            const follEl = card.querySelector('strong');
             if (follEl) follEl.textContent = fmtNum((parseInt(follEl.textContent.replace(/[^\d]/g,'')) || 0) + 1);
           }
         }
@@ -7746,13 +7755,13 @@ window.buildPostCard = function(post, profile, isLiked = false, isBookmarked = f
       const prev = voteState;
       if (voteState === 'up') {
         voteState = 'none'; voteScore--;
-        await window.sb?.from('op_post_likes').delete().eq('post_id', post.id).eq('user_id', window.State?.user?.id);
+        await sb.from('op_post_likes').delete().eq('post_id', post.id).eq('user_id', State.user?.id);
       } else {
         if (voteState === 'down') voteScore++; // undo downvote
         voteState = 'up'; voteScore++;
-        await window.sb?.from('op_post_likes').upsert({ post_id: post.id, user_id: window.State?.user?.id, vote: 1 }, { onConflict: 'post_id,user_id' });
-        if (post.author_id !== window.State?.user?.id) {
-          window.sb?.from('op_notifications').insert({ user_id: post.author_id, actor_id: window.State?.user?.id, type: 'like', post_id: post.id });
+        await sb.from('op_post_likes').upsert({ post_id: post.id, user_id: State.user?.id, vote: 1 }, { onConflict: 'post_id,user_id' });
+        if (post.author_id !== State.user?.id) {
+          sb.from('op_notifications').insert({ user_id: post.author_id, actor_id: State.user?.id, type: 'like', post_id: post.id });
         }
       }
       upBtn.style.transform = 'scale(1.35)';
@@ -7764,11 +7773,11 @@ window.buildPostCard = function(post, profile, isLiked = false, isBookmarked = f
       e.stopPropagation();
       if (voteState === 'down') {
         voteState = 'none'; voteScore++;
-        await window.sb?.from('op_post_likes').delete().eq('post_id', post.id).eq('user_id', window.State?.user?.id);
+        await sb.from('op_post_likes').delete().eq('post_id', post.id).eq('user_id', State.user?.id);
       } else {
         if (voteState === 'up') voteScore--; // undo upvote
         voteState = 'down'; voteScore--;
-        await window.sb?.from('op_post_likes').upsert({ post_id: post.id, user_id: window.State?.user?.id, vote: -1 }, { onConflict: 'post_id,user_id' });
+        await sb.from('op_post_likes').upsert({ post_id: post.id, user_id: State.user?.id, vote: -1 }, { onConflict: 'post_id,user_id' });
       }
       downBtn.style.transform = 'scale(1.3)';
       setTimeout(() => downBtn.style.transform = '', 200);
