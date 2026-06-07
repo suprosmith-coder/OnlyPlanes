@@ -5865,7 +5865,7 @@ function renderSnippets(main) {
 
 async function loadSnippets(container) {
   const { data: snippets } = await sb
-    .from('op_snippets')
+    .from('op_snippet_posts')
     .select('*, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
     .order('created_at', { ascending: false })
     .limit(20);
@@ -6243,7 +6243,7 @@ async function openSnippetComments(snippetId, card) {
         countEl.textContent = fmtNum(cur + 1);
       }
       // Increment in DB
-      await sb.from('op_snippets').update({ comments_count: (parseInt(card?.querySelector('.snip-comment-count')?.textContent)||0) }).eq('id', snippetId);
+      await sb.from('op_snippet_posts').update({ comments_count: (parseInt(card?.querySelector('.snip-comment-count')?.textContent)||0) }).eq('id', snippetId);
     } else {
       toast('Failed to post comment', 'circle-exclamation');
     }
@@ -6391,7 +6391,7 @@ function openSnippetUploadModal() {
     }
 
     const videoUrl = sb.storage.from('op_snippets').getPublicUrl(path).data.publicUrl;
-    const { error: insertErr } = await sb.from('op_snippets').insert({
+    const { error: insertErr } = await sb.from('op_snippet_posts').insert({
       author_id: State.user.id,
       video_url: videoUrl,
       caption,
