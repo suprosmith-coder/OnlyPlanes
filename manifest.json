@@ -1,15 +1,15 @@
 {
-  "name": "Devit — Code. Connect. Ship.",
-  "short_name": "Devit",
-  "description": "The social platform built by developers, for developers. Share code snippets, join communities, and ship faster together.",
+  "name": "OnlyPlanes — Log. Spot. Soar.",
+  "short_name": "OnlyPlanes",
+  "description": "The social platform built for aviation enthusiasts. Share flight logs, spot aircraft, and connect with pilots, spotters, and enthusiasts worldwide.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#050508",
-  "theme_color": "#050508",
+  "background_color": "#040c1a",
+  "theme_color": "#040c1a",
   "lang": "en",
-  "categories": ["social", "productivity", "developer tools"],
+  "categories": ["social", "travel", "lifestyle"],
 
   "icons": [
     {
@@ -64,7 +64,7 @@
     {
       "name": "New Post",
       "short_name": "Post",
-      "description": "Create a new post",
+      "description": "Share a flight log, spotting, or aviation update",
       "url": "./?action=new-post",
       "icons": [{ "src": "manifest/icon-96x96.png", "sizes": "96x96" }]
     },
@@ -73,6 +73,13 @@
       "short_name": "DMs",
       "description": "Open direct messages",
       "url": "./?view=messages",
+      "icons": [{ "src": "manifest/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Flyovers",
+      "short_name": "Flyovers",
+      "description": "Watch short aviation clips",
+      "url": "./?view=snippets",
       "icons": [{ "src": "manifest/icon-96x96.png", "sizes": "96x96" }]
     }
   ],
