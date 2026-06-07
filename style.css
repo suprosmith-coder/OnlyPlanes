@@ -1203,7 +1203,7 @@ opacity: 0.09;
 
 /* ── Messages ────────────────────────────────────── */
 .disc-chat-messages {
-  flex: 1; overflow-y: auto; padding: 16px 0 8px;
+  flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px 0 8px;
   display: flex; flex-direction: column;
   scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.3) transparent;
 }
@@ -1260,11 +1260,11 @@ opacity: 0.09;
 }
 
 /* ── Chat Input ──────────────────────────────────── */
-.disc-chat-input-area { padding: 0 16px 24px; flex-shrink: 0; }
+.disc-chat-input-area { padding: 0 16px 24px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0; }
 .disc-chat-input-wrap {
   display: flex; align-items: center;
   background: #383a40; border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
   transition: background 0.15s;
 }
 .disc-chat-input-wrap:focus-within { background: #404249; }

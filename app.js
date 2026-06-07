@@ -8092,7 +8092,7 @@ console.log('[Devit Features Patch v2] ✓ Loaded: GitHub autofill, Polls, Diges
     .disc-msg-actions {
       display: none;
       position: absolute;
-      top: -14px;
+      top: 2px;
       right: 12px;
       background: var(--bg-elevated, #1e1e2e);
       border: 1px solid var(--border, #2a2a3a);
