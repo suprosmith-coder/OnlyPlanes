@@ -5939,6 +5939,139 @@ function openProfileEditModal(profile) {
 
 /* ── Content Moderation ─────────────────────────────────────── */
 
+function openOwnPostMenu(anchorBtn, post, profile, card) {
+  document.getElementById('own-post-menu')?.remove();
+
+  const menu = document.createElement('div');
+  menu.id = 'own-post-menu';
+  menu.style.cssText = 'position:fixed;z-index:1000;background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,0.5);min-width:180px;overflow:hidden;font-size:13px';
+
+  const items = [
+    { id: 'opm-edit',   icon: 'fa-pen',        label: 'Edit Post',       color: 'var(--text-primary)' },
+    { id: 'opm-pin',    icon: 'fa-thumbtack',   label: 'Pin to Profile',  color: 'var(--cyan)' },
+    { id: 'opm-delete', icon: 'fa-trash',       label: 'Delete Post',     color: 'var(--rose)' },
+  ];
+
+  menu.innerHTML = items.map(it => `
+    <button id="${it.id}" style="display:flex;align-items:center;gap:10px;width:100%;padding:12px 16px;background:none;border:none;color:${it.color};cursor:pointer;font-size:13px;transition:background 0.15s;text-align:left">
+      <i class="fa-solid ${it.icon}" style="width:14px;text-align:center"></i> ${it.label}
+    </button>`).join('');
+
+  menu.querySelectorAll('button').forEach(b => {
+    b.addEventListener('mouseenter', () => b.style.background = 'var(--bg-elevated)');
+    b.addEventListener('mouseleave', () => b.style.background = '');
+  });
+
+  document.body.appendChild(menu);
+
+  // Position near button
+  const rect = anchorBtn.getBoundingClientRect();
+  const mw = 180;
+  let left = rect.right - mw;
+  if (left < 8) left = 8;
+  menu.style.top  = (rect.bottom + 4) + 'px';
+  menu.style.left = left + 'px';
+
+  const dismiss = e => {
+    if (!menu.contains(e.target) && e.target !== anchorBtn) {
+      menu.remove();
+      document.removeEventListener('pointerdown', dismiss);
+    }
+  };
+  setTimeout(() => document.addEventListener('pointerdown', dismiss), 50);
+
+  // ── Edit ──
+  menu.querySelector('#opm-edit').addEventListener('click', () => {
+    menu.remove();
+    openEditPostModal(post, card);
+  });
+
+  // ── Pin ──
+  menu.querySelector('#opm-pin').addEventListener('click', async () => {
+    menu.remove();
+    if (typeof pinPost === 'function') {
+      await pinPost(post.id);
+    } else {
+      toast('Pin feature loading…', 'thumbtack');
+    }
+  });
+
+  // ── Delete ──
+  menu.querySelector('#opm-delete').addEventListener('click', () => {
+    menu.remove();
+    const modal  = document.getElementById('modal-overlay');
+    const body   = document.getElementById('modal-body');
+    const title  = document.getElementById('modal-title-text');
+    if (!modal || !body) return;
+    title.textContent = 'Delete Post';
+    modal.classList.add('open');
+    body.innerHTML = `
+      <div style="padding:24px;display:flex;flex-direction:column;gap:16px">
+        <p style="font-size:14px;color:var(--text-secondary);margin:0">Are you sure you want to delete this post? This cannot be undone.</p>
+        <div style="display:flex;gap:10px">
+          <button id="confirm-delete-post" style="flex:1;padding:10px;border-radius:8px;background:var(--rose);border:none;color:#fff;font-weight:700;cursor:pointer;font-size:13px">Delete</button>
+          <button id="cancel-delete-post" style="flex:1;padding:10px;border-radius:8px;background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-primary);font-weight:600;cursor:pointer;font-size:13px">Cancel</button>
+        </div>
+      </div>`;
+    document.getElementById('confirm-delete-post').addEventListener('click', async () => {
+      modal.classList.remove('open');
+      const { error } = await sb.from('op_posts').delete().eq('id', post.id);
+      if (error) { toast('Failed to delete: ' + error.message, 'circle-exclamation'); return; }
+      card.style.transition = 'opacity 0.3s, transform 0.3s';
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(-8px)';
+      setTimeout(() => card.remove(), 300);
+      toast('Post deleted', 'trash');
+    });
+    document.getElementById('cancel-delete-post').addEventListener('click', () => modal.classList.remove('open'));
+  });
+}
+
+function openEditPostModal(post, card) {
+  const modal = document.getElementById('modal-overlay');
+  const body  = document.getElementById('modal-body');
+  const title = document.getElementById('modal-title-text');
+  if (!modal || !body) return;
+  title.textContent = 'Edit Post';
+  modal.classList.add('open');
+
+  body.innerHTML = `
+    <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+      <textarea id="edit-post-textarea" class="composer-textarea" rows="5" style="width:100%;resize:vertical">${(post.content || '').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+      <div id="edit-post-status" style="font-size:12px;color:var(--text-muted);display:none"></div>
+      <div style="display:flex;gap:10px">
+        <button id="save-edit-post" class="auth-btn-primary" style="flex:1">Save Changes</button>
+        <button id="cancel-edit-post" style="flex:1;padding:10px;border-radius:8px;background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-primary);font-weight:600;cursor:pointer;font-size:13px">Cancel</button>
+      </div>
+    </div>`;
+
+  document.getElementById('cancel-edit-post').addEventListener('click', () => modal.classList.remove('open'));
+
+  document.getElementById('save-edit-post').addEventListener('click', async () => {
+    const newContent = document.getElementById('edit-post-textarea').value.trim();
+    if (!newContent) { toast('Post cannot be empty', 'circle-exclamation'); return; }
+    const btn = document.getElementById('save-edit-post');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const { error } = await sb.from('op_posts').update({ content: newContent }).eq('id', post.id);
+    if (error) {
+      btn.disabled = false; btn.textContent = 'Save Changes';
+      toast('Failed: ' + error.message, 'circle-exclamation');
+      return;
+    }
+    modal.classList.remove('open');
+    // Update the card text in place
+    const contentEl = card?.querySelector('.post-content');
+    if (contentEl) {
+      contentEl.innerHTML = newContent
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/#(\w+)/g, '<span class="hashtag" data-tag="$1">#$1</span>')
+        .replace(/@(\w+)/g, '<span class="mention">@$1</span>');
+    }
+    post.content = newContent;
+    toast('Post updated!', 'pen');
+  });
+}
+
 function openPostMoreMenu(anchorBtn, postId, authorId) {
   // Remove any existing menu
   document.getElementById('post-more-menu')?.remove();
