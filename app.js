@@ -6290,37 +6290,27 @@ async function loadSnippetComments(snippetId, container) {
 function openSnippetUploadModal() {
   const modal = $('#modal-overlay');
   const body  = $('#modal-body');
-  $('#modal-title-text').textContent = '✈️ Post a Snippet';
+  $('#modal-title-text').textContent = '📸 Post a Snippet';
   modal.classList.add('open');
 
   body.innerHTML = `
-    <div class="snippet-upload-modal">
-      <div class="snup-drop-zone drop-zone" id="snippet-drop-zone">
-        <div class="snup-drop-icon">
-          <i class="fa-solid fa-film"></i>
-          <div class="snup-drop-ring"></div>
-        </div>
-        <div class="snup-drop-title">Drop your video here</div>
-        <div class="snup-drop-sub">Max 30 seconds · MP4, WebM, MOV</div>
-        <div class="snup-drop-cta"><i class="fa-solid fa-arrow-up-from-bracket"></i> Browse files</div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div class="drop-zone" id="snippet-drop-zone" style="border:2px dashed var(--border);border-radius:16px;padding:32px;text-align:center;cursor:pointer;transition:0.2s">
+        <div style="font-size:40px;margin-bottom:10px">🎬</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text-secondary)">Drop your video here</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Max 30 seconds · Will be compressed to ~599 KB</div>
         <input type="file" id="snippet-file-input" accept="video/*" style="display:none">
       </div>
-      <div id="snippet-preview-area" class="snup-preview-area" style="display:none">
-        <video id="snippet-preview-video" class="snup-preview-video" controls></video>
-        <div id="snippet-duration-warn" class="snup-duration-warn" style="display:none">
-          <i class="fa-solid fa-triangle-exclamation"></i> Video exceeds 30 seconds — please trim it
-        </div>
+      <div id="snippet-preview-area" style="display:none">
+        <video id="snippet-preview-video" style="width:100%;border-radius:12px;max-height:300px;background:#000" controls></video>
+        <div id="snippet-duration-warn" style="display:none;color:var(--rose);font-size:12px;margin-top:6px"><i class="fa-solid fa-triangle-exclamation"></i> Video exceeds 30 seconds — please trim it</div>
       </div>
-      <div class="snup-caption-group">
-        <label class="snup-label"><i class="fa-solid fa-pen-nib"></i> Caption <span>optional</span></label>
-        <textarea id="snippet-caption" class="snup-caption-input" placeholder="What's this about? #hashtags @mentions" rows="2"></textarea>
+      <div class="auth-input-group">
+        <label>Caption (optional)</label>
+        <textarea id="snippet-caption" class="auth-input" placeholder="What's this about? #hashtags @mentions" rows="2" style="resize:none"></textarea>
       </div>
-      <div id="snippet-compress-status" class="snup-status" style="display:none">
-        <i class="fa-solid fa-spinner fa-spin"></i> Uploading…
-      </div>
-      <button class="snup-post-btn" id="snippet-post-btn" disabled>
-        <i class="fa-solid fa-paper-plane"></i> Post Snippet
-      </button>
+      <div id="snippet-compress-status" style="display:none;font-size:12px;color:var(--cyan)"><i class="fa-solid fa-spinner fa-spin"></i> Compressing video…</div>
+      <button class="auth-btn-primary" id="snippet-post-btn" disabled><i class="fa-solid fa-film"></i> Post Snippet</button>
     </div>
   `;
 
