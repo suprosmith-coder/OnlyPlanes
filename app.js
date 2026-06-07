@@ -2014,10 +2014,153 @@ function updateBottomNavActive(view) {
   });
 }
 
-/* ── Swipe gestures removed ─────────────────────────────────── */
+/* ── Community sidebar swipe drawer (Discord-style) ─────────── */
 function initMainSwipeNavigation() {}
 function initTopbarSwipe() {}
 function initSwipeNavigation() {}
+
+/**
+ * Called by openCommunity() after the view is rendered.
+ * Adds a backdrop + swipe-right-to-open / swipe-left-to-close
+ * behaviour for the .disc-sidebar on mobile.
+ */
+function initCommunitySidebarSwipe(view) {
+  // Only activate on touch devices / narrow screens
+  if (window.innerWidth > 640) return;
+
+  const sidebar  = view.querySelector('.disc-sidebar');
+  const chatArea = view.querySelector('#community-chat-area');
+  if (!sidebar) return;
+
+  // ── Backdrop ──────────────────────────────────────────────
+  let backdrop = document.getElementById('disc-sidebar-backdrop');
+  if (!backdrop) {
+    backdrop = document.createElement('div');
+    backdrop.id = 'disc-sidebar-backdrop';
+    backdrop.className = 'disc-sidebar-backdrop';
+    document.body.appendChild(backdrop);
+  }
+
+  function openSidebar() {
+    sidebar.classList.add('sidebar-open');
+    backdrop.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSidebar() {
+    sidebar.classList.remove('sidebar-open');
+    backdrop.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  // Tap backdrop to close
+  backdrop.addEventListener('click', closeSidebar);
+
+  // ── Touch tracking ────────────────────────────────────────
+  const EDGE_ZONE   = 28;   // px from left edge that starts an open gesture
+  const THRESHOLD   = 60;   // px drag distance to commit open/close
+  const VELOCITY_T  = 0.3;  // px/ms minimum velocity to commit early
+
+  let startX = 0, startY = 0, startT = 0;
+  let tracking = false, axis = null; // axis: 'h' | 'v' | null
+
+  const target = document;   // listen on document so the edge zone always fires
+
+  target.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    startT = Date.now();
+    axis   = null;
+
+    const sidebarOpen = sidebar.classList.contains('sidebar-open');
+    // Start tracking if: swiping from left edge (open) OR sidebar is open (close)
+    if (startX <= EDGE_ZONE || sidebarOpen) {
+      tracking = true;
+    } else {
+      tracking = false;
+    }
+  }, { passive: true });
+
+  target.addEventListener('touchmove', e => {
+    if (!tracking) return;
+    const t  = e.touches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+
+    // Lock axis on first significant movement
+    if (!axis) {
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+        axis = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+      }
+    }
+
+    if (axis !== 'h') return;
+
+    const sidebarOpen = sidebar.classList.contains('sidebar-open');
+
+    if (!sidebarOpen && dx > 0) {
+      // Dragging right to open — live translate the sidebar
+      const clamped = Math.min(dx, 280);
+      sidebar.style.transition = 'none';
+      sidebar.style.transform  = `translateX(calc(-100% + ${clamped}px))`;
+      backdrop.style.display   = 'block';
+      backdrop.style.opacity   = String(Math.min(clamped / 280, 1) * 0.6);
+    } else if (sidebarOpen && dx < 0) {
+      // Dragging left to close
+      const clamped = Math.max(dx, -280);
+      sidebar.style.transition = 'none';
+      sidebar.style.transform  = `translateX(${clamped}px)`;
+      backdrop.style.opacity   = String((1 + clamped / 280) * 0.6);
+    }
+  }, { passive: true });
+
+  target.addEventListener('touchend', e => {
+    if (!tracking || axis !== 'h') {
+      tracking = false; axis = null;
+      return;
+    }
+
+    const t       = e.changedTouches[0];
+    const dx      = t.clientX - startX;
+    const dt      = Date.now() - startT;
+    const vx      = Math.abs(dx) / dt;
+    const sidebarOpen = sidebar.classList.contains('sidebar-open');
+
+    // Restore transition for snap
+    sidebar.style.transition  = '';
+    sidebar.style.transform   = '';
+    backdrop.style.transition = '';
+    backdrop.style.opacity    = '';
+
+    if (!sidebarOpen) {
+      if (dx > THRESHOLD || (dx > 20 && vx > VELOCITY_T)) {
+        openSidebar();
+      } else {
+        // Snap back
+        backdrop.style.display = 'none';
+      }
+    } else {
+      if (dx < -THRESHOLD || (dx < -20 && vx > VELOCITY_T)) {
+        closeSidebar();
+      } else {
+        openSidebar(); // snap back open
+      }
+    }
+
+    tracking = false;
+    axis     = null;
+  }, { passive: true });
+
+  // Close sidebar when a channel is tapped (mirrors Discord behaviour)
+  view.querySelectorAll('.disc-channel-item[data-chid]').forEach(item => {
+    item.addEventListener('click', () => {
+      if (window.innerWidth <= 640) closeSidebar();
+    });
+  });
+
+  // Expose close fn so join-button handler can call it too
+  view._closeSidebar = closeSidebar;
+}
 
 /* ── Feed ───────────────────────────────────────────────────── */
 
@@ -3451,6 +3594,8 @@ async function openCommunity(communityId) {
       item.classList.add('active');
       const ch = (channels || []).find(c => c.id === item.dataset.chid);
       if (ch) renderChannelChat($('#community-chat-area'), ch);
+      // Auto-close sidebar drawer on mobile after channel tap
+      if (window.innerWidth <= 640 && view._closeSidebar) view._closeSidebar();
     });
   });
 
@@ -3523,6 +3668,8 @@ async function openCommunity(communityId) {
 
   if (firstChannel) renderChannelChat($('#community-chat-area'), firstChannel);
   renderCommunityMembers($('#members-panel'), communityId);
+  // Wire up swipe-to-reveal sidebar on mobile
+  initCommunitySidebarSwipe(view);
 }
 
 async function renderChannelChat(container, channel) {
