@@ -2052,18 +2052,21 @@ function initCommunitySidebarSwipe(view) {
     sidebar.style.transform  = '';
     sidebar.classList.add('sidebar-open');
     backdrop.style.display   = 'block';
-    // force reflow then animate opacity
+    // force reflow so CSS transition fires
     backdrop.getBoundingClientRect();
     backdrop.style.opacity   = '1';
-    document.body.style.overflow = 'hidden';
+    // Do NOT lock body scroll — it freezes the whole page on mobile
   }
   function closeSidebar() {
     sidebar.style.transition = '';
     sidebar.style.transform  = '';
     sidebar.classList.remove('sidebar-open');
     backdrop.style.opacity   = '0';
-    setTimeout(() => { backdrop.style.display = 'none'; }, 280);
-    document.body.style.overflow = '';
+    setTimeout(() => {
+      if (!sidebar.classList.contains('sidebar-open')) {
+        backdrop.style.display = 'none';
+      }
+    }, 280);
   }
 
   backdrop.addEventListener('click', closeSidebar);
@@ -3591,9 +3594,10 @@ async function openCommunity(communityId) {
       $$('.disc-channel-item', view).forEach(c => c.classList.remove('active'));
       item.classList.add('active');
       const ch = (channels || []).find(c => c.id === item.dataset.chid);
-      if (ch) renderChannelChat($('#community-chat-area'), ch);
-      // Auto-close sidebar drawer after channel tap
+      // Close sidebar first (instant, no animation delay blocking the tap)
       if (view._closeSidebar) view._closeSidebar();
+      // Then switch channel on next frame so the close doesn't eat the event
+      if (ch) requestAnimationFrame(() => renderChannelChat($('#community-chat-area'), ch));
     });
   });
 

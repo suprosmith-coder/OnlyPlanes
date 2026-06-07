@@ -1074,10 +1074,13 @@ opacity: 0.09;
 #disc-sidebar-backdrop {
   display: none;
   position: fixed;
-  inset: 0;
+  /* Start at right edge of sidebar so it never blocks sidebar taps */
   top: var(--topbar-h, 56px);
+  left: 300px;
+  right: 0;
+  bottom: 0;
   background: rgba(0,0,0,0.65);
-  z-index: 499;
+  z-index: 498;
   opacity: 0;
   transition: opacity 0.28s ease;
 }
