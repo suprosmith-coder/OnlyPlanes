@@ -3624,15 +3624,31 @@ async function renderChannelChat(container, channel) {
   const msgList = $('#chat-messages-list', container);
 
   // Load existing messages
-  const { data: messages } = await sb
+  const { data: messages, error: msgLoadErr } = await sb
     .from('op_channel_messages')
-    .select('id, content, created_at, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
+    .select('id, content, created_at, author_id, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
     .eq('channel_id', channel.id)
     .order('created_at', { ascending: true })
     .limit(80);
 
-  (messages || []).forEach((msg, i) => {
-    const prev = (messages || [])[i - 1];
+  if (msgLoadErr) console.error('[OnlyPlanes] Failed to load channel messages:', msgLoadErr);
+
+  // If the FK join returned null profiles, batch-fetch them as a fallback
+  const msgsToRender = messages || [];
+  const missingProfileIds = [...new Set(
+    msgsToRender.filter(m => !m.profiles && m.author_id).map(m => m.author_id)
+  )];
+  if (missingProfileIds.length) {
+    const { data: fallbackProfiles } = await sb
+      .from('op_profiles')
+      .select('id, username, display_name, avatar_url')
+      .in('id', missingProfileIds);
+    const profileMap = Object.fromEntries((fallbackProfiles || []).map(p => [p.id, p]));
+    msgsToRender.forEach(m => { if (!m.profiles && m.author_id) m.profiles = profileMap[m.author_id] || null; });
+  }
+
+  msgsToRender.forEach((msg, i) => {
+    const prev = msgsToRender[i - 1];
     const isCont = prev && prev.profiles?.id === msg.profiles?.id;
     msgList.appendChild(buildChannelMessage(msg, isCont));
   });
