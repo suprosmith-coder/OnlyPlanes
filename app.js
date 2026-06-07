@@ -3371,7 +3371,7 @@ async function openCommunity(communityId) {
   updateSidebarActive();
 
   const { data: channels } = await sb.from('op_channels').select('*').eq('community_id', communityId).order('created_at');
-  const { data: memberCount } = await sb.from('op_community_members').select('*', { count: 'exact', head: true }).eq('community_id', communityId);
+  const { count: memberCount } = await sb.from('op_community_members').select('*', { count: 'exact', head: true }).eq('community_id', communityId);
   const isJoined = !!(await sb.from('op_community_members').select('id').eq('community_id', communityId).eq('user_id', State.user.id).single()).data;
 
   const main = $('#main');
@@ -3477,9 +3477,11 @@ async function openCommunity(communityId) {
       const newCount = (community.members_count || 0) + 1;
       await sb.from('op_communities').update({ members_count: newCount }).eq('id', communityId);
       community.members_count = newCount;
-      // Update DOM count
+      // Update DOM count — sidebar meta and channel header
       const metaEl = view.querySelector('.disc-server-meta');
       if (metaEl) metaEl.textContent = fmtNum(newCount) + ' members';
+      const headerCountEl = document.getElementById('channel-member-count');
+      if (headerCountEl) headerCountEl.textContent = fmtNum(newCount) + ' members';
       joinBtn.remove();
       toast('Joined!', 'circle-check');
       loadSidebarCommunities();
@@ -3561,6 +3563,13 @@ async function renderChannelChat(container, channel) {
   const input    = $('#channel-chat-input', container);
   const sendBtn  = $('#channel-send-btn', container);
   const typingBar = container.querySelector('#disc-chat-typing-bar');
+
+  // ── Populate header member count ──
+  const memberCountEl = container.querySelector('#channel-member-count');
+  if (memberCountEl && State.currentCommunity) {
+    const mc = State.currentCommunity.members_count || 0;
+    memberCountEl.textContent = fmtNum(mc) + ' members';
+  }
 
   // ── Reply state — declared before message render so the loop can reference it ──
   const replyState = { msg: null };
