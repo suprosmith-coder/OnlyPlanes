@@ -305,7 +305,7 @@ async function renderTagFeed(main, tag) {
   const { data: posts, error } = await sb
     .from('op_posts')
     .select(`id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, poll,
-      profiles!author_id(id, username, display_name, avatar_url)`)
+      profiles:op_profiles!author_id(id, username, display_name, avatar_url)`)
     .ilike('content', `%#${rawTag}%`)
     .order('created_at', { ascending: false })
     .limit(40);
@@ -1025,7 +1025,7 @@ async function handleDeepLink() {
     .from('op_posts')
     .select(`
       *,
-      profiles!author_id(id, username, display_name, avatar_url)
+      profiles:op_profiles!author_id(id, username, display_name, avatar_url)
     `)
     .eq('id', postId)
     .single();
@@ -2087,7 +2087,7 @@ async function loadPosts(container, stackFilter = '') {
     .from('op_posts')
     .select(`
       id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, poll, author_id,
-      profiles!author_id(id, username, display_name, avatar_url, tech_stack)
+      profiles:op_profiles!author_id(id, username, display_name, avatar_url, tech_stack)
     `)
     .order('created_at', { ascending: false })
     .limit(30);
@@ -2104,6 +2104,7 @@ async function loadPosts(container, stackFilter = '') {
 
   const { data: posts, error } = await query;
   if (error) { container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--rose)">Failed to load posts</div>`; return; }
+
 
   // Apply stack filter client-side (filter by author's tech_stack)
   let filteredPosts = posts || [];
@@ -2981,7 +2982,7 @@ async function loadComments(postId) {
   if (!container) return;
   const { data: comments } = await sb
     .from('op_comments')
-    .select('id, content, created_at, profiles!author_id(id, username, display_name, avatar_url)')
+    .select('id, content, created_at, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
     .eq('post_id', postId)
     .order('created_at', { ascending: true });
 
@@ -3162,7 +3163,7 @@ async function renderExplore(main) {
 
     } else if (tabId === 'trending') {
       const { data: posts } = await sb.from('op_posts')
-        .select('id, content, code_block, code_lang, image_url, likes_count, comments_count, reposts_count, created_at, author_id, profiles!author_id(id, username, display_name, avatar_url)')
+        .select('id, content, code_block, code_lang, image_url, likes_count, comments_count, reposts_count, created_at, author_id, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
         .order('likes_count', { ascending: false })
         .limit(20);
       content.innerHTML = `<div style="padding:12px 16px 4px;font-family:var(--font-display);font-size:14px;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-fire" style="color:var(--violet)"></i> Trending Posts</div><div id="trending-posts-feed"></div>`;
@@ -3485,7 +3486,7 @@ async function renderChannelChat(container, channel) {
   // Load existing messages
   const { data: messages } = await sb
     .from('op_channel_messages')
-    .select('id, content, created_at, profiles!author_id(id, username, display_name, avatar_url)')
+    .select('id, content, created_at, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
     .eq('channel_id', channel.id)
     .order('created_at', { ascending: true })
     .limit(80);
@@ -3562,7 +3563,7 @@ function buildChannelMessage(msg, isContinuation) {
 async function renderCommunityMembers(container, communityId) {
   const { data: members } = await sb
     .from('op_community_members')
-    .select('user_id, role, profiles!user_id(id, username, display_name, avatar_url)')
+    .select('user_id, role, profiles:op_profiles!user_id(id, username, display_name, avatar_url)')
     .eq('community_id', communityId)
     .limit(20);
 
@@ -3734,7 +3735,7 @@ async function loadNotifications() {
       updateBadges();
       // Navigate to post if applicable
       if (item.dataset.postId && item.dataset.postId !== 'null') {
-        const { data: post } = await sb.from('op_posts').select('*, profiles!author_id(id,username,display_name,avatar_url)').eq('id', item.dataset.postId).single();
+        const { data: post } = await sb.from('op_posts').select('*, profiles:op_profiles!author_id(id,username,display_name,avatar_url)').eq('id', item.dataset.postId).single();
         if (post) openPostThread(post, post.profiles);
       } else if (item.dataset.actorId && item.dataset.actorId !== 'null') {
         // For follows, link requests etc. — go to their profile
@@ -4465,7 +4466,7 @@ async function loadProfilePosts(container, userId) {
   container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-muted)">Loading…</div>`;
   const { data: posts } = await sb
     .from('op_posts')
-    .select('id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, author_id, profiles!author_id(id, username, display_name, avatar_url)')
+    .select('id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, author_id, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
     .eq('author_id', userId)
     .order('created_at', { ascending: false });
 
@@ -4702,7 +4703,7 @@ async function renderBookmarks(main) {
 
   const { data: bookmarks } = await sb
     .from('op_bookmarks')
-    .select('post_id, posts(id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, created_at, profiles!author_id(id, username, display_name, avatar_url))')
+    .select('post_id, posts(id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, created_at, profiles:op_profiles!author_id(id, username, display_name, avatar_url))')
     .eq('user_id', State.user.id)
     .order('created_at', { ascending: false });
 
@@ -5202,7 +5203,7 @@ function renderSnippets(main) {
 async function loadSnippets(container) {
   const { data: snippets } = await sb
     .from('op_snippets')
-    .select('*, profiles!author_id(id, username, display_name, avatar_url)')
+    .select('*, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
     .order('created_at', { ascending: false })
     .limit(20);
 
@@ -5592,7 +5593,7 @@ async function loadSnippetComments(snippetId, container) {
   if (!container) return;
   const { data: comments } = await sb
     .from('op_snippet_comments')
-    .select('id, content, created_at, profiles!author_id(id, username, display_name, avatar_url, is_github)')
+    .select('id, content, created_at, profiles:op_profiles!author_id(id, username, display_name, avatar_url, is_github)')
     .eq('snippet_id', snippetId)
     .order('created_at', { ascending: true })
     .limit(50);
