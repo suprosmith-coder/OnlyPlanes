@@ -3654,24 +3654,55 @@ async function renderChannelChat(container, channel) {
   });
   msgList.scrollTop = msgList.scrollHeight;
 
-  // Realtime subscription for this channel
-  const unsub = realtimeManager.subscribe(
+  // ── Broadcast channel for instant delivery (mirrors DM pattern) ──
+  const broadcastCh = sb.channel(`channel_realtime_${channel.id}`, {
+    config: { broadcast: { self: false } },
+  });
+
+  broadcastCh
+    .on('broadcast', { event: 'new_message' }, ({ payload }) => {
+      const msg = payload;
+      if (!msg || msg.author_id === State.user.id) return;
+      const listEl = document.getElementById('chat-messages-list');
+      if (!listEl) return;
+      // Avoid duplicate if postgres_changes already added it
+      if (msg.id && listEl.querySelector(`[data-msgid="${msg.id}"]`)) return;
+      const prev = listEl.lastElementChild?.dataset?.uid ? listEl.lastElementChild : null;
+      const isCont = prev && prev.dataset.uid === msg.author_id && !prev.classList.contains('disc-channel-welcome');
+      const msgEl = buildChannelMessage(msg, isCont);
+      msgEl.dataset.msgid = msg.id || '';
+      listEl.appendChild(msgEl);
+      listEl.scrollTop = listEl.scrollHeight;
+    })
+    .subscribe();
+
+  const unsubBroadcast = realtimeManager.subscribeRaw(`view:channel_bc_${channel.id}`, broadcastCh, () => {});
+  ViewUnsubFns.push(unsubBroadcast);
+
+  // Postgres changes as fallback (other devices / missed broadcasts)
+  const unsubPg = realtimeManager.subscribe(
     `view:channel_${channel.id}`,
     'op_channel_messages',
     'INSERT',
     async payload => {
       const msg = payload.new;
-      if (msg.author_id === State.user.id) return; // own messages shown immediately
+      if (msg.author_id === State.user.id) return;
+      const listEl = document.getElementById('chat-messages-list');
+      if (!listEl) return;
+      // Avoid duplicate if broadcast already added it
+      if (msg.id && listEl.querySelector(`[data-msgid="${msg.id}"]`)) return;
       const { data: profile } = await sb.from('op_profiles').select('id, username, display_name, avatar_url').eq('id', msg.author_id).single();
       msg.profiles = profile;
-      const prev = msgList.lastElementChild?.dataset?.uid ? msgList.lastElementChild : null;
+      const prev = listEl.lastElementChild?.dataset?.uid ? listEl.lastElementChild : null;
       const isCont = prev && prev.dataset.uid === msg.author_id && !prev.classList.contains('disc-channel-welcome');
-      msgList.appendChild(buildChannelMessage(msg, isCont));
-      msgList.scrollTop = msgList.scrollHeight;
+      const msgEl = buildChannelMessage(msg, isCont);
+      msgEl.dataset.msgid = msg.id || '';
+      listEl.appendChild(msgEl);
+      listEl.scrollTop = listEl.scrollHeight;
     },
     `channel_id=eq.${channel.id}`
   );
-  ViewUnsubFns.push(unsub);
+  ViewUnsubFns.push(unsubPg);
 
   // Send message
   const input = $('#channel-chat-input', container);
@@ -3691,13 +3722,28 @@ async function renderChannelChat(container, channel) {
       input.value = text;
       return;
     }
-    // Use returned row or fall back to local data so the message always renders
+    if (msgErr) {
+      toast('Failed to send message', 'circle-exclamation');
+      input.value = text;
+      return;
+    }
+    // Optimistic render — use returned row or fall back to local data
     const displayMsg = msg || { ...msgData, created_at: new Date().toISOString() };
     displayMsg.profiles = State.profile;
     const lastMsg = msgList.lastElementChild?.dataset?.uid ? msgList.lastElementChild : null;
     const isCont = lastMsg && lastMsg.dataset.uid === State.user.id;
-    msgList.appendChild(buildChannelMessage(displayMsg, isCont));
+    const msgEl = buildChannelMessage(displayMsg, isCont);
+    if (displayMsg.id) msgEl.dataset.msgid = displayMsg.id;
+    msgList.appendChild(msgEl);
     msgList.scrollTop = msgList.scrollHeight;
+    // Broadcast to other members for instant delivery
+    if (msg) {
+      await broadcastCh.send({
+        type: 'broadcast',
+        event: 'new_message',
+        payload: { ...msg, profiles: State.profile },
+      });
+    }
   }
 
   sendBtn.addEventListener('click', sendMsg);
