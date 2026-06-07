@@ -3464,7 +3464,20 @@ async function openCommunity(communityId) {
   const joinBtn = $('#join-community-btn', view);
   if (joinBtn) {
     joinBtn.addEventListener('click', async () => {
-      await sb.from('op_community_members').insert({ community_id: communityId, user_id: State.user.id });
+      joinBtn.disabled = true;
+      const { error } = await sb.from('op_community_members').insert({ community_id: communityId, user_id: State.user.id });
+      if (error && error.code !== '23505') {
+        toast('Failed to join', 'circle-exclamation');
+        joinBtn.disabled = false;
+        return;
+      }
+      // Increment count in DB
+      const newCount = (community.members_count || 0) + 1;
+      await sb.from('op_communities').update({ members_count: newCount }).eq('id', communityId);
+      community.members_count = newCount;
+      // Update DOM count
+      const metaEl = view.querySelector('.disc-server-meta');
+      if (metaEl) metaEl.textContent = fmtNum(newCount) + ' members';
       joinBtn.remove();
       toast('Joined!', 'circle-check');
       loadSidebarCommunities();
@@ -3628,7 +3641,7 @@ async function renderChannelChat(container, channel) {
   // Realtime subscription for this channel
   const unsub = realtimeManager.subscribe(
     `view:channel_${channel.id}`,
-    'channel_messages',
+    'op_channel_messages',
     'INSERT',
     async payload => {
       const msg = payload.new;
@@ -3657,14 +3670,18 @@ async function renderChannelChat(container, channel) {
       'channel_msg',
       () => sb.from('op_channel_messages').insert(msgData).select().single()
     );
-    if (msgErr?.blocked) return;
-    if (msg) {
-      msg.profiles = State.profile;
-      const lastMsg = msgList.lastElementChild?.dataset?.uid ? msgList.lastElementChild : null;
-      const isCont = lastMsg && lastMsg.dataset.uid === State.user.id;
-      msgList.appendChild(buildChannelMessage(msg, isCont));
-      msgList.scrollTop = msgList.scrollHeight;
+    if (msgErr?.blocked) {
+      toast(msgErr.message, 'triangle-exclamation');
+      input.value = text;
+      return;
     }
+    // Use returned row or fall back to local data so the message always renders
+    const displayMsg = msg || { ...msgData, created_at: new Date().toISOString() };
+    displayMsg.profiles = State.profile;
+    const lastMsg = msgList.lastElementChild?.dataset?.uid ? msgList.lastElementChild : null;
+    const isCont = lastMsg && lastMsg.dataset.uid === State.user.id;
+    msgList.appendChild(buildChannelMessage(displayMsg, isCont));
+    msgList.scrollTop = msgList.scrollHeight;
   }
 
   sendBtn.addEventListener('click', sendMsg);
