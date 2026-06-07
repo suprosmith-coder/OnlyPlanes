@@ -338,7 +338,7 @@ async function renderTagFeed(main, tag) {
 
   const { data: posts, error } = await sb
     .from('op_posts')
-    .select(`id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, poll,
+    .select(`id, content, code_block, code_lang, image_url, file_url, file_name, video_url, likes_count, comments_count, reposts_count, created_at, poll,
       profiles:op_profiles!author_id(id, username, display_name, avatar_url)`)
     .ilike('content', `%#${rawTag}%`)
     .order('created_at', { ascending: false })
@@ -2291,7 +2291,7 @@ async function loadPosts(container, stackFilter = '') {
   let query = sb
     .from('op_posts')
     .select(`
-      id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, poll, author_id,
+      id, content, code_block, code_lang, image_url, file_url, file_name, video_url, likes_count, comments_count, reposts_count, created_at, poll, author_id,
       profiles:op_profiles!author_id(id, username, display_name, avatar_url, tech_stack)
     `)
     .order('created_at', { ascending: false })
@@ -2509,8 +2509,12 @@ function buildComposer(container) {
         <button class="composer-tool" title="Attach file (max 600 KB)" id="composer-file-btn">
           <i class="fa-solid fa-paperclip" style="font-size:14px"></i>
         </button>
+        <button class="composer-tool" title="Attach video (max 50 MB)" id="composer-video-btn">
+          <i class="fa-solid fa-video" style="font-size:13px"></i>
+        </button>
         <input type="file" id="composer-img-input" accept="image/*" style="display:none">
         <input type="file" id="composer-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.js,.ts,.py,.html,.css,.json,.zip,.rar,.7z,.mp3,.wav,.ogg,.mp4,.mov,.webm" style="display:none">
+        <input type="file" id="composer-video-input" accept="video/mp4,video/webm,video/quicktime,video/ogg" style="display:none">
         <div class="composer-actions">
           <span class="char-count" id="char-count">280</span>
           <button class="post-btn" id="post-submit-btn" disabled>Post</button>
@@ -2529,11 +2533,15 @@ function buildComposer(container) {
   const imgInput    = $('#composer-img-input');
   const fileBtn     = $('#composer-file-btn');
   const fileInput   = $('#composer-file-input');
+  const videoBtn    = $('#composer-video-btn');
+  const videoInput  = $('#composer-video-input');
   const preview     = $('#composer-attach-preview');
   let selectedImageFile = null;
   let selectedAttachFile = null;
+  let selectedVideoFile = null;
 
-  const canPost = () => textarea.value.trim().length > 0 || selectedImageFile || selectedAttachFile;
+  const VIDEO_MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+  const canPost = () => textarea.value.trim().length > 0 || selectedImageFile || selectedAttachFile || selectedVideoFile;
 
   // ── Hashtag autocomplete ────────────────────────────────────
   // Injects a dropdown when user types # and shows tag chips for confirmed tags.
@@ -2751,7 +2759,7 @@ function buildComposer(container) {
   });
 
   // ── File picker ──
-  fileBtn.addEventListener('click', () => { selectedImageFile = null; fileInput.click(); });
+  fileBtn.addEventListener('click', () => { selectedImageFile = null; selectedVideoFile = null; fileInput.click(); });
 
   fileInput.addEventListener('change', () => {
     const file = fileInput.files[0];
@@ -2763,6 +2771,7 @@ function buildComposer(container) {
     }
     selectedAttachFile = file;
     selectedImageFile = null;
+    selectedVideoFile = null;
     const icon = fileIcon(file.name);
     preview.style.display = 'block';
     preview.innerHTML = `
@@ -2778,12 +2787,42 @@ function buildComposer(container) {
     submitBtn.disabled = !canPost();
   });
 
+  // ── Video picker ──
+  videoBtn.addEventListener('click', () => { selectedImageFile = null; selectedAttachFile = null; videoInput.click(); });
+
+  videoInput.addEventListener('change', () => {
+    const file = videoInput.files[0];
+    if (!file) return;
+    if (file.size > VIDEO_MAX_BYTES) {
+      toast(`Video must be under 50 MB`, 'circle-exclamation');
+      videoInput.value = '';
+      return;
+    }
+    selectedVideoFile = file;
+    selectedImageFile = null;
+    selectedAttachFile = null;
+    const url = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    preview.innerHTML = `
+      <div style="position:relative;border-radius:12px;overflow:hidden;margin-top:4px;border:1px solid var(--border);">
+        <video src="${url}" style="width:100%;max-height:200px;display:block;background:#000;object-fit:contain" controls muted playsinline></video>
+        <div style="position:absolute;top:6px;left:8px;background:rgba(0,0,0,0.6);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;display:flex;align-items:center;gap:5px;">
+          <i class="fa-solid fa-video" style="color:var(--cyan)"></i> ${escapeHtml(file.name)}
+        </div>
+        <button id="composer-attach-remove" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;width:24px;height:24px;color:#fff;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center"><i class="fa-solid fa-xmark"></i></button>
+      </div>`;
+    bindRemove();
+    submitBtn.disabled = !canPost();
+  });
+
   function bindRemove() {
     $('#composer-attach-remove').addEventListener('click', () => {
       selectedImageFile = null;
       selectedAttachFile = null;
+      selectedVideoFile = null;
       imgInput.value = '';
       fileInput.value = '';
+      videoInput.value = '';
       preview.style.display = 'none';
       preview.innerHTML = '';
       submitBtn.disabled = !canPost();
@@ -2799,6 +2838,7 @@ function buildComposer(container) {
     let imageUrl = null;
     let fileUrl  = null;
     let fileName = null;
+    let videoUrl = null;
 
     if (selectedImageFile) {
       const ext  = selectedImageFile.name.split('.').pop();
@@ -2823,11 +2863,25 @@ function buildComposer(container) {
       fileName = selectedAttachFile.name;
     }
 
+    if (selectedVideoFile) {
+      submitBtn.textContent = 'Uploading video…';
+      const ext  = selectedVideoFile.name.split('.').pop() || 'mp4';
+      const safeType = selectedVideoFile.type.startsWith('video/') ? selectedVideoFile.type : 'video/mp4';
+      const path = `posts/${State.user.id}/${Date.now()}.${ext}`;
+      const { error: uploadErr } = await sb.storage.from('snippets').upload(path, selectedVideoFile, { contentType: safeType });
+      if (uploadErr) {
+        toast('Video upload failed: ' + uploadErr.message, 'circle-exclamation');
+        submitBtn.disabled = false; submitBtn.textContent = 'Post'; return;
+      }
+      videoUrl = sb.storage.from('snippets').getPublicUrl(path).data.publicUrl;
+    }
+
     const text = textarea.value.trim();
     const postData = { author_id: State.user.id, content: text || '' };
     if (imageUrl)  postData.image_url  = imageUrl;
     if (fileUrl)   postData.file_url   = fileUrl;
     if (fileName)  postData.file_name  = fileName;
+    if (videoUrl)  postData.video_url  = videoUrl;
 
 
     // Attach poll if active
@@ -2869,8 +2923,10 @@ function buildComposer(container) {
 
       selectedImageFile = null;
       selectedAttachFile = null;
+      selectedVideoFile = null;
       imgInput.value = '';
       fileInput.value = '';
+      videoInput.value = '';
       preview.style.display = 'none';
       preview.innerHTML = '';
 
@@ -2933,6 +2989,12 @@ function buildPostCard(post, profile, isLiked = false, isBookmarked = false) {
   }
   if (post.image_url) {
     contentHtml += `<div class="post-image-wrap"><img src="${escapeHtml(post.image_url)}" class="post-image" alt="Post image" loading="lazy" style="max-width:100%;border-radius:12px;margin-top:8px;border:1px solid var(--border);display:block"></div>`;
+  }
+  if (post.video_url) {
+    contentHtml += `
+      <div style="margin-top:8px;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:#000;position:relative;">
+        <video src="${escapeHtml(post.video_url)}" style="width:100%;max-height:360px;display:block;object-fit:contain;" controls playsinline preload="metadata" controlsList="nodownload"></video>
+      </div>`;
   }
   if (post.file_url && post.file_name) {
     const icon = fileIcon(post.file_name);
@@ -5067,7 +5129,7 @@ async function loadProfilePosts(container, userId) {
   container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-muted)">Loading…</div>`;
   const { data: posts } = await sb
     .from('op_posts')
-    .select('id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, reposts_count, created_at, author_id, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
+    .select('id, content, code_block, code_lang, image_url, file_url, file_name, video_url, likes_count, comments_count, reposts_count, created_at, author_id, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
     .eq('author_id', userId)
     .order('created_at', { ascending: false });
 
@@ -5304,7 +5366,7 @@ async function renderBookmarks(main) {
 
   const { data: bookmarks } = await sb
     .from('op_bookmarks')
-    .select('post_id, posts(id, content, code_block, code_lang, image_url, file_url, file_name, likes_count, comments_count, created_at, profiles:op_profiles!author_id(id, username, display_name, avatar_url))')
+    .select('post_id, posts(id, content, code_block, code_lang, image_url, file_url, file_name, video_url, likes_count, comments_count, created_at, profiles:op_profiles!author_id(id, username, display_name, avatar_url))')
     .eq('user_id', State.user.id)
     .order('created_at', { ascending: false });
 
