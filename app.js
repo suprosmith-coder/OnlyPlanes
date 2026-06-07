@@ -3623,10 +3623,20 @@ async function renderChannelChat(container, channel) {
 
   const msgList = $('#chat-messages-list', container);
 
+  // ch:reply event — fired by reply buttons inside buildChannelMessage
+  msgList.addEventListener('ch:reply', e => {
+    const { msg } = e.detail;
+    if (typeof showReplyBar === 'function') showReplyBar(msg);
+    else {
+      // showReplyBar defined later; store and trigger after setup
+      replyState._pending = msg;
+    }
+  });
+
   // Load messages — no FK join (mirrors DM pattern: fetch messages then profiles separately)
   const { data: messages, error: msgLoadErr } = await sb
     .from('op_channel_messages')
-    .select('id, content, created_at, author_id')
+    .select('id, content, created_at, author_id, reply_to_id, reply_to_content, reply_to_author')
     .eq('channel_id', channel.id)
     .order('created_at', { ascending: true })
     .limit(80);
@@ -3652,9 +3662,12 @@ async function renderChannelChat(container, channel) {
     msg.profiles = profileMap[msg.author_id] || null;
     const prev = msgsToRender[i - 1];
     const isCont = prev && prev.author_id === msg.author_id;
-    msgList.appendChild(buildChannelMessage(msg, isCont));
+    msgList.appendChild(buildChannelMessage(msg, isCont, profileMap, msgList, input, replyState));
   });
   msgList.scrollTop = msgList.scrollHeight;
+
+  // ── Reply state (tracks which message is being replied to) ──────
+  const replyState = { msg: null };
 
   // ── Broadcast channel for instant delivery (mirrors DM pattern) ──
   const broadcastCh = sb.channel(`channel_realtime_${channel.id}`, {
@@ -3671,7 +3684,7 @@ async function renderChannelChat(container, channel) {
       if (msg.id && listEl.querySelector(`[data-msgid="${msg.id}"]`)) return;
       const prev = listEl.lastElementChild?.dataset?.uid ? listEl.lastElementChild : null;
       const isCont = prev && prev.dataset.uid === msg.author_id && !prev.classList.contains('disc-channel-welcome');
-      const msgEl = buildChannelMessage(msg, isCont);
+      const msgEl = buildChannelMessage(msg, isCont, profileMap, listEl, input, replyState);
       msgEl.dataset.msgid = msg.id || '';
       listEl.appendChild(msgEl);
       listEl.scrollTop = listEl.scrollHeight;
@@ -3697,7 +3710,7 @@ async function renderChannelChat(container, channel) {
       msg.profiles = profile;
       const prev = listEl.lastElementChild?.dataset?.uid ? listEl.lastElementChild : null;
       const isCont = prev && prev.dataset.uid === msg.author_id && !prev.classList.contains('disc-channel-welcome');
-      const msgEl = buildChannelMessage(msg, isCont);
+      const msgEl = buildChannelMessage(msg, isCont, profileMap, listEl, input, replyState);
       msgEl.dataset.msgid = msg.id || '';
       listEl.appendChild(msgEl);
       listEl.scrollTop = listEl.scrollHeight;
@@ -3714,7 +3727,14 @@ async function renderChannelChat(container, channel) {
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
-    const msgData = { channel_id: channel.id, author_id: State.user.id, content: text };
+    // Capture and clear reply state
+    const replyRef = replyState.msg ? {
+      reply_to_id:      replyState.msg.id,
+      reply_to_content: replyState.msg.content,
+      reply_to_author:  replyState.msg.profiles?.display_name || replyState.msg.profiles?.username || 'User',
+    } : {};
+    clearReplyBar();
+    const msgData = { channel_id: channel.id, author_id: State.user.id, content: text, ...replyRef };
     const { data: msg, error: msgErr } = await MutationGuard.wrapInsert(
       'channel_msg',
       () => sb.from('op_channel_messages').insert(msgData).select().single()
@@ -3733,8 +3753,8 @@ async function renderChannelChat(container, channel) {
     const displayMsg = msg || { ...msgData, created_at: new Date().toISOString() };
     displayMsg.profiles = State.profile;
     const lastMsg = msgList.lastElementChild?.dataset?.uid ? msgList.lastElementChild : null;
-    const isCont = lastMsg && lastMsg.dataset.uid === State.user.id;
-    const msgEl = buildChannelMessage(displayMsg, isCont);
+    const isCont = lastMsg && lastMsg.dataset.uid === State.user.id && !replyRef.reply_to_id;
+    const msgEl = buildChannelMessage(displayMsg, isCont, profileMap, msgList, input, replyState);
     if (displayMsg.id) msgEl.dataset.msgid = displayMsg.id;
     msgList.appendChild(msgEl);
     msgList.scrollTop = msgList.scrollHeight;
@@ -3748,20 +3768,73 @@ async function renderChannelChat(container, channel) {
     }
   }
 
+  // ── Reply bar (shown above input when replying) ───────────────
+  const replyBar = document.createElement('div');
+  replyBar.id = 'channel-reply-bar';
+  replyBar.style.display = 'none';
+  replyBar.innerHTML = `
+    <div class="ch-reply-bar-inner">
+      <i class="fa-solid fa-reply" style="color:var(--cyan);font-size:11px"></i>
+      <span class="ch-reply-bar-label">Replying to <strong class="ch-reply-bar-name"></strong></span>
+      <span class="ch-reply-bar-preview"></span>
+      <button class="ch-reply-bar-close" title="Cancel reply"><i class="fa-solid fa-xmark"></i></button>
+    </div>`;
+  const inputArea = container.querySelector('.disc-chat-input-area');
+  if (inputArea) inputArea.insertBefore(replyBar, inputArea.firstChild);
+
+  function showReplyBar(msg) {
+    replyState.msg = msg;
+    const authorName = msg.profiles?.display_name || msg.profiles?.username || 'User';
+    replyBar.querySelector('.ch-reply-bar-name').textContent = authorName;
+    replyBar.querySelector('.ch-reply-bar-preview').textContent = msg.content.slice(0, 60) + (msg.content.length > 60 ? '…' : '');
+    replyBar.style.display = 'block';
+    input.focus();
+  }
+
+  function clearReplyBar() {
+    replyState.msg = null;
+    replyBar.style.display = 'none';
+  }
+
+  replyBar.querySelector('.ch-reply-bar-close').addEventListener('click', clearReplyBar);
+
+  // Handle any reply triggered before showReplyBar was available
+  if (replyState._pending) { showReplyBar(replyState._pending); delete replyState._pending; }
+
   sendBtn.addEventListener('click', sendMsg);
   input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } });
 }
 
-function buildChannelMessage(msg, isContinuation) {
+function buildChannelMessage(msg, isContinuation, profileMap = {}, msgList = null, input = null, replyState = null) {
   const profile = msg.profiles;
   const color = avatarColor(profile?.display_name || profile?.username || '?');
   const name = profile?.display_name || profile?.username || 'User';
+  const isOwn = msg.author_id === State.user?.id;
+
   const msgEl = el('div', `disc-msg${isContinuation ? ' disc-msg--cont' : ''}`);
   msgEl.dataset.uid = profile?.id || '';
+  if (msg.id) msgEl.dataset.msgid = msg.id;
 
   const avatarHtml = profile?.avatar_url
     ? `<img src="${escapeHtml(profile.avatar_url)}" alt="${escapeHtml(name)}" class="disc-msg-avatar-img">`
     : `<div class="disc-msg-avatar" style="background:${color}">${avatarInitials(name)}</div>`;
+
+  // Reply quote block
+  const replyHtml = msg.reply_to_id
+    ? `<div class="disc-msg-reply-quote" data-jump="${escapeHtml(msg.reply_to_id)}">
+        <i class="fa-solid fa-reply" style="font-size:10px;color:var(--cyan);opacity:0.8"></i>
+        <span class="disc-msg-reply-author">${escapeHtml(msg.reply_to_author || 'User')}</span>
+        <span class="disc-msg-reply-text">${escapeHtml((msg.reply_to_content || '').slice(0, 80))}${(msg.reply_to_content || '').length > 80 ? '…' : ''}</span>
+       </div>`
+    : '';
+
+  // Action buttons (reply always, edit/delete only for own)
+  const actionsHtml = `
+    <div class="disc-msg-actions">
+      <button class="disc-msg-action-btn ch-reply-btn" title="Reply"><i class="fa-solid fa-reply"></i></button>
+      ${isOwn ? `<button class="disc-msg-action-btn ch-edit-btn" title="Edit"><i class="fa-solid fa-pencil"></i></button>` : ''}
+      ${isOwn ? `<button class="disc-msg-action-btn ch-delete-btn" title="Delete" style="color:var(--rose)"><i class="fa-solid fa-trash"></i></button>` : ''}
+    </div>`;
 
   msgEl.innerHTML = `
     <div class="disc-msg-avatar-col">
@@ -3771,9 +3844,88 @@ function buildChannelMessage(msg, isContinuation) {
     </div>
     <div class="disc-msg-body">
       ${!isContinuation ? `<div class="disc-msg-header"><span class="disc-msg-author" style="color:${color}">${escapeHtml(name)}</span><span class="disc-msg-time">${timeAgo(msg.created_at)}</span></div>` : ''}
+      ${replyHtml}
       <div class="disc-msg-text">${escapeHtml(msg.content)}</div>
     </div>
+    ${actionsHtml}
   `;
+
+  // Jump to quoted message on quote click
+  if (msg.reply_to_id) {
+    msgEl.querySelector('.disc-msg-reply-quote')?.addEventListener('click', () => {
+      const target = msgList?.querySelector(`[data-msgid="${msg.reply_to_id}"]`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('disc-msg-highlight');
+        setTimeout(() => target.classList.remove('disc-msg-highlight'), 1500);
+      }
+    });
+  }
+
+  // Reply button
+  msgEl.querySelector('.ch-reply-btn')?.addEventListener('click', () => {
+    if (replyState && input) {
+      const showReplyBar = input.closest('.disc-chat-input-area')?.parentElement
+        ?.querySelector?.('#channel-reply-bar');
+      // Trigger via replyState + custom event so the bar in closure updates
+      msgEl.dispatchEvent(new CustomEvent('ch:reply', { bubbles: true, detail: { msg: { ...msg, profiles: profile } } }));
+    }
+  });
+
+  // Edit button
+  msgEl.querySelector('.ch-edit-btn')?.addEventListener('click', () => {
+    const textEl = msgEl.querySelector('.disc-msg-text');
+    if (!textEl || msgEl.querySelector('.ch-edit-input')) return;
+    const original = msg.content;
+    textEl.style.display = 'none';
+    const editWrap = document.createElement('div');
+    editWrap.className = 'ch-edit-wrap';
+    editWrap.innerHTML = `
+      <textarea class="ch-edit-input" rows="2">${escapeHtml(original)}</textarea>
+      <div class="ch-edit-actions">
+        <span style="font-size:11px;color:var(--text-muted)">Enter to save · Esc to cancel</span>
+        <button class="ch-edit-save disc-msg-action-btn" style="color:var(--emerald)"><i class="fa-solid fa-check"></i> Save</button>
+        <button class="ch-edit-cancel disc-msg-action-btn"><i class="fa-solid fa-xmark"></i> Cancel</button>
+      </div>`;
+    textEl.insertAdjacentElement('afterend', editWrap);
+    const ta = editWrap.querySelector('.ch-edit-input');
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+
+    async function saveEdit() {
+      const newText = ta.value.trim();
+      if (!newText || newText === original) { cancelEdit(); return; }
+      const { error } = await sb.from('op_channel_messages').update({ content: newText }).eq('id', msg.id);
+      if (error) { toast('Edit failed: ' + error.message, 'circle-exclamation'); return; }
+      msg.content = newText;
+      textEl.textContent = newText;
+      textEl.style.display = '';
+      editWrap.remove();
+    }
+
+    function cancelEdit() {
+      textEl.style.display = '';
+      editWrap.remove();
+    }
+
+    editWrap.querySelector('.ch-edit-save').addEventListener('click', saveEdit);
+    editWrap.querySelector('.ch-edit-cancel').addEventListener('click', cancelEdit);
+    ta.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(); }
+      if (e.key === 'Escape') cancelEdit();
+    });
+  });
+
+  // Delete button
+  msgEl.querySelector('.ch-delete-btn')?.addEventListener('click', async () => {
+    if (!confirm('Delete this message?')) return;
+    const { error } = await sb.from('op_channel_messages').delete().eq('id', msg.id);
+    if (error) { toast('Delete failed: ' + error.message, 'circle-exclamation'); return; }
+    msgEl.style.transition = 'opacity 0.2s';
+    msgEl.style.opacity = '0';
+    setTimeout(() => msgEl.remove(), 200);
+  });
+
   return msgEl;
 }
 
@@ -7923,6 +8075,163 @@ console.log('[Devit Features Patch v2] ✓ Loaded: GitHub autofill, Polls, Diges
     @keyframes dm-bounce {
       0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
       30%            { transform: translateY(-4px); opacity: 1; }
+    }
+  `;
+  document.head.appendChild(s);
+})();
+
+(function injectChannelMessageStyles() {
+  if (document.getElementById('ch-msg-styles')) return;
+  const s = document.createElement('style');
+  s.id = 'ch-msg-styles';
+  s.textContent = `
+    /* ── Message hover actions ─────────────────────────── */
+    .disc-msg {
+      position: relative;
+    }
+    .disc-msg-actions {
+      display: none;
+      position: absolute;
+      top: -14px;
+      right: 12px;
+      background: var(--bg-elevated, #1e1e2e);
+      border: 1px solid var(--border, #2a2a3a);
+      border-radius: 8px;
+      padding: 3px 6px;
+      gap: 2px;
+      align-items: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      z-index: 10;
+    }
+    .disc-msg:hover .disc-msg-actions {
+      display: flex;
+    }
+    .disc-msg-action-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted, #888);
+      cursor: pointer;
+      padding: 4px 7px;
+      border-radius: 6px;
+      font-size: 12px;
+      transition: background 0.12s, color 0.12s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .disc-msg-action-btn:hover {
+      background: var(--bg-surface, #141420);
+      color: var(--text-primary, #fff);
+    }
+
+    /* ── Reply quote inside message ────────────────────── */
+    .disc-msg-reply-quote {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-void, #0a0a14);
+      border-left: 3px solid var(--cyan, #22d3ee);
+      border-radius: 0 6px 6px 0;
+      padding: 4px 10px;
+      margin-bottom: 4px;
+      cursor: pointer;
+      max-width: 100%;
+      overflow: hidden;
+      transition: background 0.12s;
+    }
+    .disc-msg-reply-quote:hover {
+      background: rgba(34,211,238,0.07);
+    }
+    .disc-msg-reply-author {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--cyan, #22d3ee);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .disc-msg-reply-text {
+      font-size: 11px;
+      color: var(--text-muted, #888);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Jump-to highlight flash ───────────────────────── */
+    .disc-msg-highlight {
+      animation: ch-highlight-flash 1.5s ease forwards;
+    }
+    @keyframes ch-highlight-flash {
+      0%   { background: rgba(34,211,238,0.18); border-radius: 8px; }
+      100% { background: transparent; }
+    }
+
+    /* ── Reply bar above input ─────────────────────────── */
+    #channel-reply-bar {
+      padding: 6px 14px 4px;
+      border-top: 1px solid var(--border, #2a2a3a);
+      background: var(--bg-surface, #141420);
+    }
+    .ch-reply-bar-inner {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+    }
+    .ch-reply-bar-label {
+      color: var(--text-muted, #888);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .ch-reply-bar-label strong {
+      color: var(--cyan, #22d3ee);
+    }
+    .ch-reply-bar-preview {
+      color: var(--text-muted, #888);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      opacity: 0.7;
+    }
+    .ch-reply-bar-close {
+      background: none;
+      border: none;
+      color: var(--text-muted, #888);
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      flex-shrink: 0;
+      transition: color 0.12s;
+    }
+    .ch-reply-bar-close:hover { color: var(--rose, #f43f5e); }
+
+    /* ── Inline edit ───────────────────────────────────── */
+    .ch-edit-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 2px;
+    }
+    .ch-edit-input {
+      width: 100%;
+      background: var(--bg-void, #0a0a14);
+      border: 1px solid var(--cyan, #22d3ee);
+      border-radius: 8px;
+      color: var(--text-primary, #fff);
+      font-size: 14px;
+      font-family: inherit;
+      padding: 7px 10px;
+      resize: none;
+      outline: none;
+      line-height: 1.5;
+      box-sizing: border-box;
+    }
+    .ch-edit-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
   `;
   document.head.appendChild(s);
