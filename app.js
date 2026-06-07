@@ -214,6 +214,7 @@ async function _refreshFollowCountsInDOM(main, targetId) {
   if (target) {
     // Profile page stat pills: Following[0], Followers[1], Posts[2]
     const statEls = main.querySelectorAll('.profile-stat strong');
+    if (statEls[0]) statEls[0].textContent = fmtNum(target.following_count || 0);
     if (statEls[1]) statEls[1].textContent = fmtNum(target.followers_count || 0);
   }
 
@@ -233,6 +234,7 @@ function _syncProfileStatDOM() {
     const statEls = main.querySelectorAll('.profile-stat strong');
     if (statEls[0]) statEls[0].textContent = fmtNum(State.profile.following_count || 0);
     if (statEls[1]) statEls[1].textContent = fmtNum(State.profile.followers_count || 0);
+    if (statEls[2]) statEls[2].textContent = fmtNum(State.profile.posts_count || 0);
   }
   // Quick-view overlay — update own following count if own card is open
   const pqvOverlay = document.getElementById('profile-quick-view-overlay');
@@ -2678,6 +2680,16 @@ function buildComposer(container) {
     if (error) {
       if (!error.blocked) toast('Failed to post: ' + error.message, 'circle-exclamation');
     } else {
+      // Increment posts_count on the author's profile
+      const currentPostsCount = State.profile?.posts_count || 0;
+      await sb.from('op_profiles')
+        .update({ posts_count: currentPostsCount + 1 })
+        .eq('id', State.user.id);
+      if (State.profile) {
+        State.profile.posts_count = currentPostsCount + 1;
+        _syncProfileStatDOM();
+      }
+
       // Close modal first, then reload the feed so the new post is visible
       document.getElementById('modal-overlay')?.classList.remove('open');
       setTimeout(() => {
@@ -2994,6 +3006,15 @@ function openPostThread(post, profile) {
     }
     if (!error) {
       loadComments(post.id);
+      // Increment comment count on all matching post cards in the feed
+      document.querySelectorAll(`.post-card[data-post-id="${post.id}"] .comment-count`).forEach(el => {
+        el.textContent = fmtNum((parseInt(el.textContent) || 0) + 1);
+      });
+      // Increment in DB
+      await sb.from('op_posts')
+        .update({ comments_count: (post.comments_count || 0) + 1 })
+        .eq('id', post.id);
+      post.comments_count = (post.comments_count || 0) + 1; // keep local ref in sync
       if (post.author_id !== State.user.id) {
         await sb.from('op_notifications').insert({ user_id: post.author_id, actor_id: State.user.id, type: 'comment', post_id: post.id });
       }
@@ -6982,16 +7003,29 @@ function renderPollInPost(poll, postId, currentUserId) {
 // Fetch real counts + user's vote from poll_votes and patch DOM in place
 async function _hydratePollCounts(postId, userId) {
   try {
-    const { data, error } = await sb.rpc('get_poll_state', {
+    let counts = {}, myVote = null, total = 0;
+
+    // Try RPC first
+    const { data: rpcData, error: rpcErr } = await sb.rpc('get_poll_state', {
       p_post_ids: [postId],
       p_user_id: userId || null,
     });
-    if (error || !data?.length) return;
 
-    const row = data[0];
-    const counts  = row.counts  || {};
-    const myVote  = row.my_vote || null;
-    const total   = Number(row.total) || 0;
+    if (!rpcErr && rpcData?.length) {
+      const row = rpcData[0];
+      counts  = row.counts  || {};
+      myVote  = row.my_vote || null;
+      total   = Number(row.total) || 0;
+    } else {
+      // RPC not available — read votes directly from the poll JSON on the post
+      const { data: postRow } = await sb.from('op_posts').select('poll').eq('id', postId).single();
+      if (postRow?.poll) {
+        const poll = postRow.poll;
+        counts = poll.votes || {};
+        total  = Object.values(counts).reduce((s, v) => s + v, 0);
+        myVote = (poll.voted_by || {})[userId] || null;
+      }
+    }
 
     // Fetch poll options from post (needed for full render)
     const { data: post } = await sb.from('op_posts').select('poll').eq('id', postId).single();
@@ -7039,12 +7073,47 @@ document.addEventListener('click', async e => {
     });
 
     if (error) {
-      toast('Vote failed: ' + error.message, 'circle-exclamation');
-      // Revert optimistic UI
-      container?.querySelectorAll('.poll-option').forEach(o => {
-        o.classList.remove('voted');
-        o.style.pointerEvents = '';
-      });
+      // RPC not set up — fall back to client-side vote via direct post update
+      const { data: postData } = await sb.from('op_posts').select('poll').eq('id', postId).single();
+      if (!postData?.poll?.options?.length) {
+        toast('Vote failed: poll data not found', 'circle-exclamation');
+        container?.querySelectorAll('.poll-option').forEach(o => { o.classList.remove('voted'); o.style.pointerEvents = ''; });
+        return;
+      }
+
+      const poll = postData.poll;
+      // Prevent double-voting client-side
+      const votedBy = poll.voted_by || {};
+      if (votedBy[userId]) {
+        toast('You already voted!', 'circle-exclamation');
+        container?.querySelectorAll('.poll-option').forEach(o => { o.classList.remove('voted'); o.style.pointerEvents = ''; });
+        return;
+      }
+
+      const votes = { ...(poll.votes || {}) };
+      votes[chosen] = (votes[chosen] || 0) + 1;
+      votedBy[userId] = chosen;
+      const updatedPoll = { ...poll, votes, voted_by: votedBy };
+
+      const { error: updateErr } = await sb.from('op_posts').update({ poll: updatedPoll }).eq('id', postId);
+      if (updateErr) {
+        toast('Vote failed: ' + updateErr.message, 'circle-exclamation');
+        container?.querySelectorAll('.poll-option').forEach(o => { o.classList.remove('voted'); o.style.pointerEvents = ''; });
+        return;
+      }
+
+      // Build counts from the updated votes object
+      const counts = votes;
+      const total  = Object.values(votes).reduce((s, v) => s + v, 0);
+
+      const fresh = document.querySelector(`.poll-container[data-poll-post="${postId}"]`);
+      if (fresh) {
+        const temp = document.createElement('div');
+        temp.innerHTML = _renderPollHtml(updatedPoll, postId, counts, chosen, total);
+        const newNode = temp.firstElementChild;
+        if (newNode) fresh.replaceWith(newNode);
+      }
+      toast(`Voted: ${chosen}`, 'chart-bar');
       return;
     }
 
@@ -7080,27 +7149,40 @@ async function refreshAllPollsForUser(userId) {
 
   try {
     // Fetch all vote states in one RPC call
-    const { data: states } = await sb.rpc('get_poll_state', {
+    let stateMap = {};
+    const { data: states, error: rpcErr } = await sb.rpc('get_poll_state', {
       p_post_ids: postIds,
       p_user_id: userId,
     });
-    const { data: posts } = await sb.from('op_posts').select('id, poll').in('id', postIds);
-    if (!posts || !states) return;
 
-    const stateMap = Object.fromEntries((states || []).map(s => [s.post_id, s]));
-    const postMap  = Object.fromEntries((posts  || []).map(p => [p.id, p]));
+    if (!rpcErr && states) {
+      stateMap = Object.fromEntries((states || []).map(s => [s.post_id, s]));
+    }
+    // (If RPC fails, stateMap stays empty — we'll fall back per-post via the post's poll JSON)
+
+    const { data: posts } = await sb.from('op_posts').select('id, poll').in('id', postIds);
+    if (!posts) return;
+
+    const postMap = Object.fromEntries((posts || []).map(p => [p.id, p]));
 
     for (const postId of postIds) {
       const post  = postMap[postId];
-      const state = stateMap[postId];
       if (!post?.poll?.options?.length) continue;
 
       const container = document.querySelector(`.poll-container[data-poll-post="${postId}"]`);
       if (!container) continue;
 
-      const counts = state?.counts || {};
-      const myVote = state?.my_vote || null;
-      const total  = Number(state?.total) || 0;
+      let counts = {}, myVote = null, total = 0;
+      if (stateMap[postId]) {
+        counts = stateMap[postId]?.counts  || {};
+        myVote = stateMap[postId]?.my_vote || null;
+        total  = Number(stateMap[postId]?.total) || 0;
+      } else {
+        // Fallback: read from the poll JSON directly
+        counts = post.poll.votes || {};
+        total  = Object.values(counts).reduce((s, v) => s + v, 0);
+        myVote = (post.poll.voted_by || {})[userId] || null;
+      }
 
       const temp = document.createElement('div');
       temp.innerHTML = _renderPollHtml(post.poll, postId, counts, myVote, total);
