@@ -2509,11 +2509,12 @@ function buildComposer(container) {
         <button class="composer-tool" title="Attach file (max 600 KB)" id="composer-file-btn">
           <i class="fa-solid fa-paperclip" style="font-size:14px"></i>
         </button>
-        <button class="composer-tool" title="Post a short video snippet" id="composer-video-btn">
+        <button class="composer-tool" title="Attach video (max 50 MB)" id="composer-video-btn">
           <i class="fa-solid fa-video" style="font-size:13px"></i>
         </button>
         <input type="file" id="composer-img-input" accept="image/*" style="display:none">
         <input type="file" id="composer-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.js,.ts,.py,.html,.css,.json,.zip,.rar,.7z,.mp3,.wav,.ogg,.mp4,.mov,.webm" style="display:none">
+        <input type="file" id="composer-video-input" accept="video/mp4,video/webm,video/quicktime,video/ogg" style="display:none">
         <div class="composer-actions">
           <span class="char-count" id="char-count">280</span>
           <button class="post-btn" id="post-submit-btn" disabled>Post</button>
@@ -2533,11 +2534,14 @@ function buildComposer(container) {
   const fileBtn     = $('#composer-file-btn');
   const fileInput   = $('#composer-file-input');
   const videoBtn    = $('#composer-video-btn');
+  const videoInput  = $('#composer-video-input');
   const preview     = $('#composer-attach-preview');
   let selectedImageFile = null;
   let selectedAttachFile = null;
+  let selectedVideoFile = null;
 
-  const canPost = () => textarea.value.trim().length > 0 || selectedImageFile || selectedAttachFile;
+  const VIDEO_MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+  const canPost = () => textarea.value.trim().length > 0 || selectedImageFile || selectedAttachFile || selectedVideoFile;
 
   // ── Hashtag autocomplete ────────────────────────────────────
   // Injects a dropdown when user types # and shows tag chips for confirmed tags.
@@ -2755,7 +2759,7 @@ function buildComposer(container) {
   });
 
   // ── File picker ──
-  fileBtn.addEventListener('click', () => { selectedImageFile = null; fileInput.click(); });
+  fileBtn.addEventListener('click', () => { selectedImageFile = null; selectedVideoFile = null; fileInput.click(); });
 
   fileInput.addEventListener('change', () => {
     const file = fileInput.files[0];
@@ -2767,6 +2771,7 @@ function buildComposer(container) {
     }
     selectedAttachFile = file;
     selectedImageFile = null;
+    selectedVideoFile = null;
     const icon = fileIcon(file.name);
     preview.style.display = 'block';
     preview.innerHTML = `
@@ -2782,15 +2787,42 @@ function buildComposer(container) {
     submitBtn.disabled = !canPost();
   });
 
-  // ── Video button → Snippets upload modal ──
-  videoBtn.addEventListener('click', () => openSnippetUploadModal());
+  // ── Video picker ──
+  videoBtn.addEventListener('click', () => { selectedImageFile = null; selectedAttachFile = null; videoInput.click(); });
+
+  videoInput.addEventListener('change', () => {
+    const file = videoInput.files[0];
+    if (!file) return;
+    if (file.size > VIDEO_MAX_BYTES) {
+      toast(`Video must be under 50 MB`, 'circle-exclamation');
+      videoInput.value = '';
+      return;
+    }
+    selectedVideoFile = file;
+    selectedImageFile = null;
+    selectedAttachFile = null;
+    const url = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    preview.innerHTML = `
+      <div style="position:relative;border-radius:12px;overflow:hidden;margin-top:4px;border:1px solid var(--border);">
+        <video src="${url}" style="width:100%;max-height:200px;display:block;background:#000;object-fit:contain" controls muted playsinline></video>
+        <div style="position:absolute;top:6px;left:8px;background:rgba(0,0,0,0.6);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;display:flex;align-items:center;gap:5px;">
+          <i class="fa-solid fa-video" style="color:var(--cyan)"></i> ${escapeHtml(file.name)}
+        </div>
+        <button id="composer-attach-remove" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;width:24px;height:24px;color:#fff;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center"><i class="fa-solid fa-xmark"></i></button>
+      </div>`;
+    bindRemove();
+    submitBtn.disabled = !canPost();
+  });
 
   function bindRemove() {
     $('#composer-attach-remove').addEventListener('click', () => {
       selectedImageFile = null;
       selectedAttachFile = null;
+      selectedVideoFile = null;
       imgInput.value = '';
       fileInput.value = '';
+      videoInput.value = '';
       preview.style.display = 'none';
       preview.innerHTML = '';
       submitBtn.disabled = !canPost();
@@ -2806,6 +2838,7 @@ function buildComposer(container) {
     let imageUrl = null;
     let fileUrl  = null;
     let fileName = null;
+    let videoUrl = null;
 
     if (selectedImageFile) {
       const ext  = selectedImageFile.name.split('.').pop();
@@ -2830,11 +2863,25 @@ function buildComposer(container) {
       fileName = selectedAttachFile.name;
     }
 
+    if (selectedVideoFile) {
+      submitBtn.textContent = 'Uploading video…';
+      const ext  = selectedVideoFile.name.split('.').pop() || 'mp4';
+      const safeType = selectedVideoFile.type.startsWith('video/') ? selectedVideoFile.type : 'video/mp4';
+      const path = `posts/${State.user.id}/${Date.now()}.${ext}`;
+      const { error: uploadErr } = await sb.storage.from('op_snippets').upload(path, selectedVideoFile, { contentType: safeType });
+      if (uploadErr) {
+        toast('Video upload failed: ' + uploadErr.message, 'circle-exclamation');
+        submitBtn.disabled = false; submitBtn.textContent = 'Post'; return;
+      }
+      videoUrl = sb.storage.from('op_snippets').getPublicUrl(path).data.publicUrl;
+    }
+
     const text = textarea.value.trim();
     const postData = { author_id: State.user.id, content: text || '' };
     if (imageUrl)  postData.image_url  = imageUrl;
     if (fileUrl)   postData.file_url   = fileUrl;
     if (fileName)  postData.file_name  = fileName;
+    if (videoUrl)  postData.video_url  = videoUrl;
 
 
     // Attach poll if active
@@ -2876,8 +2923,10 @@ function buildComposer(container) {
 
       selectedImageFile = null;
       selectedAttachFile = null;
+      selectedVideoFile = null;
       imgInput.value = '';
       fileInput.value = '';
+      videoInput.value = '';
       preview.style.display = 'none';
       preview.innerHTML = '';
 
@@ -6241,27 +6290,37 @@ async function loadSnippetComments(snippetId, container) {
 function openSnippetUploadModal() {
   const modal = $('#modal-overlay');
   const body  = $('#modal-body');
-  $('#modal-title-text').textContent = '📸 Post a Snippet';
+  $('#modal-title-text').textContent = '✈️ Post a Snippet';
   modal.classList.add('open');
 
   body.innerHTML = `
-    <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
-      <div class="drop-zone" id="snippet-drop-zone" style="border:2px dashed var(--border);border-radius:16px;padding:32px;text-align:center;cursor:pointer;transition:0.2s">
-        <div style="font-size:40px;margin-bottom:10px">🎬</div>
-        <div style="font-size:14px;font-weight:600;color:var(--text-secondary)">Drop your video here</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Max 30 seconds · Will be compressed to ~599 KB</div>
+    <div class="snippet-upload-modal">
+      <div class="snup-drop-zone drop-zone" id="snippet-drop-zone">
+        <div class="snup-drop-icon">
+          <i class="fa-solid fa-film"></i>
+          <div class="snup-drop-ring"></div>
+        </div>
+        <div class="snup-drop-title">Drop your video here</div>
+        <div class="snup-drop-sub">Max 30 seconds · MP4, WebM, MOV</div>
+        <div class="snup-drop-cta"><i class="fa-solid fa-arrow-up-from-bracket"></i> Browse files</div>
         <input type="file" id="snippet-file-input" accept="video/*" style="display:none">
       </div>
-      <div id="snippet-preview-area" style="display:none">
-        <video id="snippet-preview-video" style="width:100%;border-radius:12px;max-height:300px;background:#000" controls></video>
-        <div id="snippet-duration-warn" style="display:none;color:var(--rose);font-size:12px;margin-top:6px"><i class="fa-solid fa-triangle-exclamation"></i> Video exceeds 30 seconds — please trim it</div>
+      <div id="snippet-preview-area" class="snup-preview-area" style="display:none">
+        <video id="snippet-preview-video" class="snup-preview-video" controls></video>
+        <div id="snippet-duration-warn" class="snup-duration-warn" style="display:none">
+          <i class="fa-solid fa-triangle-exclamation"></i> Video exceeds 30 seconds — please trim it
+        </div>
       </div>
-      <div class="auth-input-group">
-        <label>Caption (optional)</label>
-        <textarea id="snippet-caption" class="auth-input" placeholder="What's this about? #hashtags @mentions" rows="2" style="resize:none"></textarea>
+      <div class="snup-caption-group">
+        <label class="snup-label"><i class="fa-solid fa-pen-nib"></i> Caption <span>optional</span></label>
+        <textarea id="snippet-caption" class="snup-caption-input" placeholder="What's this about? #hashtags @mentions" rows="2"></textarea>
       </div>
-      <div id="snippet-compress-status" style="display:none;font-size:12px;color:var(--cyan)"><i class="fa-solid fa-spinner fa-spin"></i> Compressing video…</div>
-      <button class="auth-btn-primary" id="snippet-post-btn" disabled><i class="fa-solid fa-film"></i> Post Snippet</button>
+      <div id="snippet-compress-status" class="snup-status" style="display:none">
+        <i class="fa-solid fa-spinner fa-spin"></i> Uploading…
+      </div>
+      <button class="snup-post-btn" id="snippet-post-btn" disabled>
+        <i class="fa-solid fa-paper-plane"></i> Post Snippet
+      </button>
     </div>
   `;
 
@@ -6331,7 +6390,7 @@ function openSnippetUploadModal() {
 
     // Guarantee a video contentType — never let audio/mpeg or unknown types through
     const safeContentType = selectedFile.type.startsWith('video/') ? selectedFile.type : 'video/mp4';
-    const { error: uploadErr } = await sb.storage.from('snippets').upload(path, selectedFile, { contentType: safeContentType });
+    const { error: uploadErr } = await sb.storage.from('op_snippets').upload(path, selectedFile, { contentType: safeContentType });
     status.style.display = 'none';
 
     if (uploadErr) {
@@ -6341,7 +6400,7 @@ function openSnippetUploadModal() {
       return;
     }
 
-    const videoUrl = sb.storage.from('snippets').getPublicUrl(path).data.publicUrl;
+    const videoUrl = sb.storage.from('op_snippets').getPublicUrl(path).data.publicUrl;
     const { error: insertErr } = await sb.from('op_snippets').insert({
       author_id: State.user.id,
       video_url: videoUrl,
