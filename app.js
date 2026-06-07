@@ -854,15 +854,18 @@ function _buildOptimisticProfile(authUser) {
   const meta     = authUser.user_metadata || {};
   const provider = authUser.app_metadata?.provider || '';
   const isDiscord = provider === 'discord';
-  // Discord OAuth supplies: full_name, avatar_url, custom_claims.global_name, provider_id
+  // Discord OAuth supplies: user_name (their Discord username), full_name, avatar_url
+  // NEVER use email — it would leak into the public username
   const baseUsername = (
-    meta.user_name || meta.preferred_username || meta.full_name ||
-    'pilot_' + Date.now()
+    meta.user_name || meta.preferred_username || meta.custom_claims?.global_name ||
+    'pilot_' + Math.random().toString(36).slice(2, 8)
   ).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 30);
+  // Display name: prefer Discord global name, fall back to username — never email
+  const displayName = meta.full_name || meta.custom_claims?.global_name || meta.name || baseUsername;
   return {
     id: authUser.id,
     username: baseUsername,
-    display_name: meta.full_name || meta.name || baseUsername,
+    display_name: displayName,
     avatar_url: meta.avatar_url || meta.picture || null,
     bio: '', location: '', website: '',
     tech_stack: [], followers_count: 0, following_count: 0, posts_count: 0,
@@ -921,10 +924,13 @@ async function _syncProfileInBackground(authUser) {
   }
 
   // Profile doesn't exist yet — create it (new user via OAuth)
+  // IMPORTANT: never use email or email prefix as username — it leaks private info publicly
   const baseUsername = (
-    meta.user_name || meta.preferred_username || email.split('@')[0] || 'user_' + Date.now()
+    meta.user_name || meta.preferred_username || meta.custom_claims?.global_name ||
+    'pilot_' + Math.random().toString(36).slice(2, 8)
   ).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 30);
-  const display_name = meta.full_name || meta.name || baseUsername;
+  // Display name: use Discord global name or username — never email
+  const display_name = meta.full_name || meta.custom_claims?.global_name || meta.name || baseUsername;
   const avatar_url   = meta.avatar_url || meta.picture || null;
 
   let newProfile = null;
