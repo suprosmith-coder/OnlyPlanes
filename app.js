@@ -2868,12 +2868,12 @@ function buildComposer(container) {
       const ext  = selectedVideoFile.name.split('.').pop() || 'mp4';
       const safeType = selectedVideoFile.type.startsWith('video/') ? selectedVideoFile.type : 'video/mp4';
       const path = `posts/${State.user.id}/${Date.now()}.${ext}`;
-      const { error: uploadErr } = await sb.storage.from('snippets').upload(path, selectedVideoFile, { contentType: safeType });
+      const { error: uploadErr } = await sb.storage.from('post-videos').upload(path, selectedVideoFile, { contentType: safeType });
       if (uploadErr) {
         toast('Video upload failed: ' + uploadErr.message, 'circle-exclamation');
         submitBtn.disabled = false; submitBtn.textContent = 'Post'; return;
       }
-      videoUrl = sb.storage.from('snippets').getPublicUrl(path).data.publicUrl;
+      videoUrl = sb.storage.from('post-videos').getPublicUrl(path).data.publicUrl;
     }
 
     const text = textarea.value.trim();
@@ -6374,28 +6374,26 @@ function openSnippetUploadModal() {
 
     const caption = document.getElementById('snippet-caption').value.trim();
 
-    // Read file as base64 data URL — no storage bucket needed
-    const videoDataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = e => resolve(e.target.result);
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsDataURL(selectedFile);
-    }).catch(err => {
-      toast('Failed to read video: ' + err.message, 'circle-exclamation');
-      return null;
-    });
+    // Upload video to storage bucket
+    const ext  = selectedFile.name.split(".").pop() || "mp4";
+    const path = `snippets/${State.user.id}/${Date.now()}.${ext}`;
+    const safeType = selectedFile.type.startsWith("video/") ? selectedFile.type : "video/mp4";
 
-    status.style.display = 'none';
+    status.textContent = "Uploading video to storage...";
+    const { data: uploadData, error: uploadErr } = await sb.storage.from("snippets").upload(path, selectedFile, { contentType: safeType });
 
-    if (!videoDataUrl) {
+    if (uploadErr) {
+      toast("Video upload failed: " + uploadErr.message, "circle-exclamation");
       postBtn.disabled = false;
-      postBtn.innerHTML = '<i class="fa-solid fa-film"></i> Post Snippet';
+      postBtn.innerHTML = "<i class=\"fa-solid fa-film\"></i> Post Snippet";
+      status.style.display = "none";
       return;
     }
+    const videoUrl = sb.storage.from("snippets").getPublicUrl(path).data.publicUrl;
 
     const { error: insertErr } = await sb.from('op_snippet_posts').insert({
       author_id: State.user.id,
-      video_url: videoDataUrl,
+      video_url: videoUrl,
       caption,
       hearts_count: 0,
       duration: Math.round(previewVid.duration || 0),
