@@ -2869,12 +2869,12 @@ function buildComposer(container) {
       const ext  = selectedVideoFile.name.split('.').pop() || 'mp4';
       const safeType = selectedVideoFile.type.startsWith('video/') ? selectedVideoFile.type : 'video/mp4';
       const path = `posts/${State.user.id}/${Date.now()}.${ext}`;
-      const { error: uploadErr } = await sb.storage.from('post-files').upload(path, selectedVideoFile, { contentType: safeType });
+      const { error: uploadErr } = await sb.storage.from('op_snippets').upload(path, selectedVideoFile, { contentType: safeType });
       if (uploadErr) {
         toast('Video upload failed: ' + uploadErr.message, 'circle-exclamation');
         submitBtn.disabled = false; submitBtn.textContent = 'Post'; return;
       }
-      videoUrl = sb.storage.from('post-files').getPublicUrl(path).data.publicUrl;
+      videoUrl = sb.storage.from('op_snippets').getPublicUrl(path).data.publicUrl;
     }
 
     const text = textarea.value.trim();
@@ -6380,7 +6380,7 @@ function openSnippetUploadModal() {
     const safeType = selectedFile.type.startsWith("video/") ? selectedFile.type : "video/mp4";
 
     status.textContent = "Uploading video to storage...";
-    const { data: uploadData, error: uploadErr } = await sb.storage.from("post-files").upload(path, selectedFile, { contentType: safeType });
+    const { data: uploadData, error: uploadErr } = await sb.storage.from("op_snippets").upload(path, selectedFile, { contentType: safeType });
 
     if (uploadErr) {
       toast("Video upload failed: " + uploadErr.message, "circle-exclamation");
@@ -6389,7 +6389,7 @@ function openSnippetUploadModal() {
       status.style.display = "none";
       return;
     }
-    const videoUrl = sb.storage.from("post-files").getPublicUrl(path).data.publicUrl;
+    const videoUrl = sb.storage.from("op_snippets").getPublicUrl(path).data.publicUrl;
 
     const { error: insertErr } = await sb.from('op_snippet_posts').insert({
       author_id: State.user.id,
