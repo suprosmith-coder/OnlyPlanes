@@ -5865,11 +5865,13 @@ function renderSnippets(main) {
 }
 
 async function loadSnippets(container) {
-  const { data: snippets } = await sb
+  const { data: snippets, error: snippetErr } = await sb
     .from('op_snippets')
-    .select('*, profiles:op_profiles!author_id(id, username, display_name, avatar_url)')
+    .select('*')
     .order('created_at', { ascending: false })
     .limit(20);
+
+  if (snippetErr) console.error('[loadSnippets] query error:', snippetErr);
 
   if (!snippets?.length) {
     container.innerHTML = `
@@ -5880,6 +5882,16 @@ async function loadSnippets(container) {
       </div>`;
     return;
   }
+
+  // Batch fetch profiles separately to avoid FK join issues
+  const authorIds = [...new Set(snippets.map(s => s.author_id).filter(Boolean))];
+  const { data: profiles } = await sb
+    .from('op_profiles')
+    .select('id, username, display_name, avatar_url')
+    .in('id', authorIds);
+  const profileMap = {};
+  (profiles || []).forEach(p => { profileMap[p.id] = p; });
+  snippets.forEach(s => { s.profiles = profileMap[s.author_id] || null; });
 
   container.innerHTML = '';
   snippets.forEach(s => container.appendChild(buildSnippetCard(s)));
