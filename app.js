@@ -6323,12 +6323,11 @@ function openSnippetUploadModal() {
   const postBtn    = document.getElementById('snippet-post-btn');
   let selectedFile = null;
 
-  const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'];
-
   function validateVideoFile(file) {
     if (!file) return false;
-    if (!file.type.startsWith('video/') || !ALLOWED_VIDEO_TYPES.includes(file.type)) {
-      toast(`Unsupported file type: ${file.type || 'unknown'}. Please upload a video (MP4, WebM, MOV).`, 'circle-exclamation');
+    // Allow empty MIME type (common on Android) or any video/* type
+    if (file.type && !file.type.startsWith('video/')) {
+      toast(`Unsupported file type: ${file.type}. Please upload a video (MP4, WebM, MOV).`, 'circle-exclamation');
       return false;
     }
     return true;
@@ -6381,7 +6380,7 @@ function openSnippetUploadModal() {
     const safeType = selectedFile.type.startsWith("video/") ? selectedFile.type : "video/mp4";
 
     status.textContent = "Uploading video to storage...";
-    const { data: uploadData, error: uploadErr } = await sb.storage.from("snippets").upload(path, selectedFile, { contentType: safeType });
+    const { data: uploadData, error: uploadErr } = await sb.storage.from("post-files").upload(path, selectedFile, { contentType: safeType });
 
     if (uploadErr) {
       toast("Video upload failed: " + uploadErr.message, "circle-exclamation");
@@ -6390,7 +6389,7 @@ function openSnippetUploadModal() {
       status.style.display = "none";
       return;
     }
-    const videoUrl = sb.storage.from("snippets").getPublicUrl(path).data.publicUrl;
+    const videoUrl = sb.storage.from("post-files").getPublicUrl(path).data.publicUrl;
 
     const { error: insertErr } = await sb.from('op_snippet_posts').insert({
       author_id: State.user.id,
