@@ -1,139 +1,1253 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OnlyPlanes - Shutdown Notice</title>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.github.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.github.com https://api.allorigins.win https://*.vercel.app; img-src 'self' data: https: blob:; worker-src 'self' blob:;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="OnlyPlanes — Log. Spot. Soar. The social platform built for aviation enthusiasts. Share flight logs, spot aircraft, and connect with fellow aviators.">
+  <meta name="theme-color" content="#040c1a">
 
-<style>
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+  <!-- PWA / installability -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OnlyPlanes">
+  <link rel="apple-touch-icon" href="devit.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="devit.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="devit.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="devit.png">
+  <meta name="msapplication-TileImage" content="devit.png">
+  <meta name="msapplication-TileColor" content="#050508">
+  <meta name="msapplication-tap-highlight" content="no">
 
-body {
-    font-family: Arial, Helvetica, sans-serif;
-    background: #0f172a;
-    color: white;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
-}
+  <meta name="robots" content="index, follow">
+  <meta name="keywords" content="aviation social network, flight logs, planespotting, aircraft community, aviator platform">
+  <meta name="author" content="OnlyPlanes">
+  <link rel="canonical" href="https://only-planesavgeek.vercel.app/">
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap">
 
-.container {
-    max-width: 700px;
-    width: 100%;
-    text-align: center;
-    background: #111827;
-    border: 1px solid #1f2937;
-    border-radius: 16px;
-    padding: 40px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-}
+  <!-- Open Graph -->
+  <meta property="og:title" content="OnlyPlanes — Log. Spot. Soar.">
+  <meta property="og:description" content="The social platform built for aviation enthusiasts. Share flight logs, spot aircraft, and connect with fellow aviators.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://only-planesavgeek.vercel.app/">
+  <meta property="og:image" content="https://only-planesavgeek.vercel.app/devit.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="OnlyPlanes — The aviation social platform">
+  <meta property="og:site_name" content="OnlyPlanes">
+  <meta property="og:locale" content="en_US">
 
-.logo {
-    width: 120px;
-    height: auto;
-    margin-bottom: 20px;
-}
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="OnlyPlanes — Log. Spot. Soar.">
+  <meta name="twitter:description" content="The social platform built for aviation enthusiasts.">
+  <meta name="twitter:image" content="https://only-planesavgeek.vercel.app/devit.png">
+  <meta name="twitter:image:alt" content="OnlyPlanes — The aviation social platform">
 
-h1 {
-    font-size: 2rem;
-    margin-bottom: 12px;
-}
-
-.subtitle {
-    color: #9ca3af;
-    margin-bottom: 25px;
-    line-height: 1.6;
-}
-
-details {
-    background: #1f2937;
-    border-radius: 12px;
-    padding: 15px;
-    text-align: left;
-}
-
-summary {
-    cursor: pointer;
-    font-weight: bold;
-    font-size: 1rem;
-}
-
-.reason {
-    margin-top: 15px;
-    color: #d1d5db;
-    line-height: 1.7;
-}
-
-.signature {
-    margin-top: 30px;
-    font-size: 1.1rem;
-}
-
-.footer {
-    margin-top: 25px;
-    color: #6b7280;
-    font-size: 0.9rem;
-}
-</style>
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "OnlyPlanes",
+    "description": "The social platform built for aviation enthusiasts. Share flight logs, spot aircraft, and connect with fellow aviators.",
+    "url": "https://only-planesavgeek.vercel.app/",
+    "applicationCategory": "SocialNetworkingApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+  <title>OnlyPlanes — Log. Spot. Soar.</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="devit.png" type="image/png">
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
-<div class="container">
+  <a href="#main" class="skip-link">Skip to main content</a>
 
-    <img src="devit.png" alt="OnlyPlanes Logo" class="logo">
+  <noscript>
+    <div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;text-align:center;padding:20px">
+      <div>
+        <h2 style="margin-bottom:8px">JavaScript required</h2>
+        <p style="color:#888">OnlyPlanes requires JavaScript to run. Please enable it in your browser settings.</p>
+      </div>
+    </div>
+  </noscript>
 
-    <h1>✈️ OnlyPlanes Has Been Shut Down</h1>
+  <div class="presence-bar" id="presence-bar"></div>
 
-    <p class="subtitle">
-        This project has been permanently discontinued and is no longer available.
-    </p>
+  <!-- AUTH SCREEN -->
+  <div id="auth-screen">
+    <div class="auth-bg">
+      <div class="auth-bg-grid"></div>
+      <div class="auth-bg-orb orb-1"></div>
+      <div class="auth-bg-orb orb-2"></div>
+      <div class="auth-bg-orb orb-3"></div>
+    </div>
 
-    <details>
-        <summary>Why was OnlyPlanes shut down?</summary>
+    <!-- Left panel – branding/feature highlights + public trending preview -->
+    <div class="auth-panel-left">
+      <div class="auth-panel-brand">
+        <img src="devit.png" alt="OnlyPlanes" class="auth-panel-logo">
+        <span class="auth-panel-name">OnlyPlanes</span>
+      </div>
+      <h2 class="auth-panel-headline">Where aviators<br>log &amp; connect.</h2>
+      <p class="auth-panel-desc">Share your flights. Spot aircraft worldwide. Connect with pilots, spotters, and enthusiasts who live and breathe aviation.</p>
 
-        <div class="reason">
-            OnlyPlanes is shutting down because it simply wasn't worth continuing.
-
-            <br><br>
-
-            After spending a significant amount of time building, maintaining,
-            and hosting the platform, it became clear that the project wasn't
-            providing enough value to justify the ongoing investment.
-
-            <br><br>
-
-            Running an online platform requires time, infrastructure, domains,
-            maintenance, and constant attention. At some point, every project
-            needs to justify those costs, and OnlyPlanes ultimately did not.
-
-            <br><br>
-
-            Rather than continue supporting something that wasn't moving forward,
-            the decision was made to shut the service down, remove its data,
-            and focus on projects with stronger long-term potential.
-
-            <br><br>
-
-            Thank you to everyone who visited, supported, or was simply curious
-            enough to check it out.
+      <!-- Trending preview (public, anon fetch) -->
+      <div class="auth-trending-preview" id="auth-trending-preview">
+        <div class="auth-trending-label"><i class="fa-solid fa-fire" style="color:var(--cyan)"></i> Trending now</div>
+        <div id="auth-trending-list">
+          <div class="auth-trending-skeleton"></div>
+          <div class="auth-trending-skeleton"></div>
+          <div class="auth-trending-skeleton"></div>
         </div>
-    </details>
+      </div>
 
-    <div class="signature">
-        <strong><em>Sincerely,<br>Sarano Smith</em></strong>
+      <!-- Feature pills (condensed) -->
+      <div class="auth-feature-pills">
+        <span class="auth-pill"><i class="fa-solid fa-plane"></i> Flight logs</span>
+        <span class="auth-pill"><i class="fa-solid fa-binoculars"></i> Planespotting</span>
+        <span class="auth-pill"><i class="fa-solid fa-bolt"></i> Real-time DMs</span>
+        <span class="auth-pill"><i class="fa-solid fa-people-group"></i> Crew boards</span>
+        <span class="auth-pill auth-pill-new"><i class="fa-solid fa-hashtag-lock"></i> Tail Lookup</span>
+        <span class="auth-pill auth-pill-new"><i class="fa-solid fa-book-open"></i> Spotting Log</span>
+        <span class="auth-pill auth-pill-new"><i class="fa-solid fa-video"></i> Flyovers</span>
+        <span class="auth-pill auth-pill-new"><i class="fa-solid fa-shield-halved"></i> Verified Profiles</span>
+        <span class="auth-pill auth-pill-new"><i class="fa-solid fa-award"></i> Earn Your Wings</span>
+        <span class="auth-pill"><i class="fa-solid fa-route"></i> Route posts</span>
+        <span class="auth-pill"><i class="fa-solid fa-hashtag"></i> Topic channels</span>
+      </div>
     </div>
 
-    <div class="footer">
-        OnlyPlanes • Service Discontinued
+    <!-- Right panel – auth card -->
+    <div class="auth-card">
+      <div class="auth-card-center">
+        <div class="auth-card-logo">
+          <img src="devit.png" alt="OnlyPlanes" style="width:56px;height:56px;border-radius:16px;object-fit:cover;">
+        </div>
+        <h2 class="auth-card-title">Welcome to OnlyPlanes</h2>
+        <p class="auth-card-sub">Sign in with your Discord account to join the fleet.</p>
+
+        <button class="auth-btn-discord" id="discord-login-btn">
+          <svg class="discord-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" fill="#fff"/>
+          </svg>
+          <span>Continue with Discord</span>
+        </button>
+
+        <div style="display:flex;align-items:center;gap:12px;margin:12px 0 4px">
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <span style="font-size:11px;color:var(--text-muted);white-space:nowrap">or</span>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+
+        <button id="guest-browse-btn" style="width:100%;padding:12px 20px;border-radius:12px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-secondary);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.2s;font-family:var(--font-body,sans-serif)" onmouseover="this.style.borderColor='rgba(255,45,110,0.4)';this.style.color='var(--text-primary)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+          <i class="fa-solid fa-eye" style="font-size:14px"></i>
+          <span>Browse as Guest</span>
+        </button>
+
+        <div id="auth-status" style="display:none;margin-top:16px;padding:10px 14px;border-radius:10px;background:var(--bg-elevated);font-size:13px;color:var(--text-secondary);text-align:center;border:1px solid var(--border);line-height:1.5"></div>
+
+        <div class="auth-footer">
+          By continuing you agree to OnlyPlanes's <a href="#" rel="noopener">Terms</a> and <a href="#" rel="noopener">Privacy Policy</a>
+        </div>
+      </div>
     </div>
+  </div>
 
-</div>
+  <!-- APP SHELL -->
+  <div id="app" aria-hidden="true">
+    <div id="topbar" role="banner"></div>
+    <div class="app-body">
+      <aside id="sidebar" role="navigation" aria-label="Main navigation"></aside>
+      <main id="main" role="main" aria-live="polite" aria-atomic="false" tabindex="-1"></main>
+      <aside id="rightbar" role="complementary" aria-label="Sidebar widgets"></aside>
+    </div>
+  </div>
 
+  <!-- Mobile drawer blur overlay -->
+  <div id="layout-blur-overlay"></div>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav id="bottom-nav" aria-label="Main navigation">
+    <div id="bottom-nav-inner">
+      <button class="bnav-btn active" data-nav="feed" aria-label="Feed">
+        <i class="fa-solid fa-house"></i>
+        <span class="bnav-badge" id="bnav-badge-feed"></span>
+      </button>
+      <button class="bnav-btn" data-nav="explore" aria-label="Explore">
+        <i class="fa-solid fa-compass"></i>
+      </button>
+      <button class="bnav-btn bnav-post-btn" id="bnav-post-btn" aria-label="New post">
+        <div class="bnav-post-icon"><i class="fa-solid fa-plus"></i></div>
+      </button>
+      <button class="bnav-btn" data-nav="flyovers" aria-label="Flyovers">
+        <i class="fa-solid fa-video" style="color:var(--amber)"></i>
+      </button>
+      <button class="bnav-btn" data-nav="spotlog" aria-label="Spotting Log">
+        <i class="fa-solid fa-book-open"></i>
+      </button>
+      <button class="bnav-btn" data-nav="profile" aria-label="Profile">
+        <i class="fa-solid fa-user"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title-text">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="modal-title-text">New Post</span>
+        <button class="modal-close" id="modal-close-btn" aria-label="Close dialog"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toast-container" role="status" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- Experience feedback popup removed: interrupts focus -->
+
+  <!-- Rate popup removed: time-based interruptions hurt focus -->
+
+  <!-- PROFILE QUICK VIEW OVERLAY -->
+  <div id="profile-quick-overlay" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);align-items:center;justify-content:center;">
+    <div id="profile-quick-card" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:24px;width:360px;max-width:95vw;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,0.6);">
+    </div>
+  </div>
+
+  <script>
+    // Apply saved theme immediately (before render) to avoid flash
+    (function() {
+      const t = localStorage.getItem('devit-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+
+  <script>
+    window.DEVIT_CONFIG = {
+      SUPABASE_URL: 'https://nynrocdgmowjgslgfdmc.supabase.co',
+      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55bnJvY2RnbW93amdzbGdmZG1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NTUxNTQsImV4cCI6MjA5MzIzMTE1NH0.280rrXAe92hxylzia2hl3ygRrG0LraDzBCGwQUeXu5U',
+      SITE_URL: 'https://only-planesavgeek.vercel.app/',
+    };
+  </script>
+
+  <script src="app.js"></script>
+
+  <!-- ── Sidebar Drawer Init ─────────────────────────────────── -->
+  <script>
+  (function() {
+    // Wait for buildTopbar() to render the ham button, then upgrade it
+    function initSidebarDrawer() {
+      const hamBtn = document.getElementById('topbar-ham-btn');
+      if (!hamBtn) { setTimeout(initSidebarDrawer, 150); return; }
+
+      // Replace single icon with bars + X pair
+      hamBtn.innerHTML = `
+        <i class="fa-solid fa-bars icon-bars"></i>
+        <i class="fa-solid fa-xmark icon-x"></i>`;
+      hamBtn.style.cssText = '';  // clear any inline display:none
+
+      // Override toggleSidebar to use drawer open/close instead of sidebar-collapsed
+      window.toggleSidebar = function() {
+        const sidebar  = document.getElementById('sidebar');
+        const overlay  = document.getElementById('layout-blur-overlay');
+        if (!sidebar) return;
+        const isOpen = sidebar.classList.toggle('open');
+        document.body.classList.toggle('sidebar-open', isOpen);
+        if (overlay) overlay.classList.toggle('active', isOpen);
+        // Close when overlay is clicked
+        if (isOpen && overlay) {
+          overlay.onclick = window.closeSidebarDrawer;
+        }
+      };
+
+      window.closeSidebarDrawer = function() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('layout-blur-overlay');
+        if (!sidebar) return;
+        sidebar.classList.remove('open');
+        document.body.classList.remove('sidebar-open');
+        if (overlay) { overlay.classList.remove('active'); overlay.onclick = null; }
+      };
+
+      // Close drawer when a nav link is clicked
+      document.getElementById('sidebar')?.addEventListener('click', e => {
+        if (e.target.closest('.sidebar-link')) window.closeSidebarDrawer();
+      });
+
+      // Close on Escape
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && document.body.classList.contains('sidebar-open')) {
+          window.closeSidebarDrawer();
+        }
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => setTimeout(initSidebarDrawer, 200));
+    } else {
+      setTimeout(initSidebarDrawer, 200);
+    }
+  })();
+  </script>
+
+  <!-- ── Topbar Search Dropdown ──────────────────────────────── -->
+  <script>
+  (function() {
+    // Wait for topbar to be rendered by app.js, then attach dropdown
+    function initSearchDropdown() {
+      const searchWrap = document.querySelector('.topbar-search');
+      if (!searchWrap) { setTimeout(initSearchDropdown, 300); return; }
+
+      const input = searchWrap.querySelector('input');
+      if (!input) { setTimeout(initSearchDropdown, 300); return; }
+
+      // Create dropdown container
+      const dropdown = document.createElement('div');
+      dropdown.id = 'topbar-search-dropdown';
+      searchWrap.appendChild(dropdown);
+
+      let debounceTimer = null;
+      let currentQuery = '';
+
+      function openDropdown() { dropdown.classList.add('open'); }
+      function closeDropdown() { dropdown.classList.remove('open'); }
+
+      function renderLoading() {
+        dropdown.innerHTML = `<div class="tsearch-loading"><div class="tsearch-spinner"></div>Searching…</div>`;
+        openDropdown();
+      }
+
+      function renderEmpty(q) {
+        dropdown.innerHTML = `<div class="tsearch-empty">No results for "<strong>${escHtml(q)}</strong>"</div>`;
+        openDropdown();
+      }
+
+      function renderDefault() {
+        dropdown.innerHTML = `
+          <div class="tsearch-section-label">Quick nav</div>
+          <div class="tsearch-result" data-nav="feed">
+            <div class="tsearch-result-icon"><i class="fa-solid fa-house"></i></div>
+            <div class="tsearch-result-text">
+              <div class="tsearch-result-name">Feed</div>
+              <div class="tsearch-result-sub">Your home timeline</div>
+            </div>
+          </div>
+          <div class="tsearch-result" data-nav="explore">
+            <div class="tsearch-result-icon"><i class="fa-solid fa-compass"></i></div>
+            <div class="tsearch-result-text">
+              <div class="tsearch-result-name">Explore</div>
+              <div class="tsearch-result-sub">Trending posts & devs</div>
+            </div>
+          </div>
+          <div class="tsearch-result" data-nav="messages">
+            <div class="tsearch-result-icon"><i class="fa-solid fa-message"></i></div>
+            <div class="tsearch-result-text">
+              <div class="tsearch-result-name">Messages</div>
+              <div class="tsearch-result-sub">Direct messages</div>
+            </div>
+          </div>
+          <div class="tsearch-result" data-nav="leaderboard">
+            <div class="tsearch-result-icon"><i class="fa-solid fa-trophy"></i></div>
+            <div class="tsearch-result-text">
+              <div class="tsearch-result-name">Leaderboard</div>
+              <div class="tsearch-result-sub">Top shipping devs</div>
+            </div>
+          </div>
+        `;
+        openDropdown();
+
+        // Quick nav click handlers
+        dropdown.querySelectorAll('.tsearch-result[data-nav]').forEach(el => {
+          el.addEventListener('click', () => {
+            const nav = el.dataset.nav;
+            if (typeof navigateTo === 'function') navigateTo(nav);
+            closeDropdown();
+            input.value = '';
+          });
+        });
+      }
+
+      function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
+      function renderResults(users, posts, q) {
+        if (!users.length && !posts.length) { renderEmpty(q); return; }
+        let html = '';
+
+        if (users.length) {
+          html += `<div class="tsearch-section-label">People</div>`;
+          users.forEach(u => {
+            const initials = (u.full_name || u.username || '?').slice(0,2).toUpperCase();
+            const avatarHtml = u.avatar_url
+              ? `<img src="${escHtml(u.avatar_url)}" alt="" loading="lazy">`
+              : initials;
+            html += `
+              <div class="tsearch-result" data-type="user" data-id="${escHtml(u.id || '')}">
+                <div class="tsearch-result-avatar">${avatarHtml}</div>
+                <div class="tsearch-result-text">
+                  <div class="tsearch-result-name">${escHtml(u.full_name || u.username || '')}</div>
+                  <div class="tsearch-result-sub">@${escHtml(u.username || '')}</div>
+                </div>
+              </div>`;
+          });
+        }
+
+        if (users.length && posts.length) html += `<div class="tsearch-divider"></div>`;
+
+        if (posts.length) {
+          html += `<div class="tsearch-section-label">Posts</div>`;
+          posts.slice(0,3).forEach(p => {
+            const preview = (p.content || '').slice(0,60) + (p.content && p.content.length > 60 ? '…' : '');
+            html += `
+              <div class="tsearch-result" data-type="post" data-id="${escHtml(p.id || '')}">
+                <div class="tsearch-result-icon"><i class="fa-solid fa-file-code"></i></div>
+                <div class="tsearch-result-text">
+                  <div class="tsearch-result-name">${escHtml(p.author_name || p.username || 'Post')}</div>
+                  <div class="tsearch-result-sub">${escHtml(preview)}</div>
+                </div>
+              </div>`;
+          });
+        }
+
+        html += `<div class="tsearch-footer"><i class="fa-solid fa-magnifying-glass"></i> See all results for "${escHtml(q)}"</div>`;
+        dropdown.innerHTML = html;
+        openDropdown();
+
+        // Result click handlers
+        dropdown.querySelectorAll('.tsearch-result[data-type]').forEach(el => {
+          el.addEventListener('click', () => {
+            const type = el.dataset.type;
+            const id = el.dataset.id;
+            if (type === 'user' && typeof navigateTo === 'function') navigateTo('profile', { userId: id });
+            if (type === 'post' && typeof navigateTo === 'function') navigateTo('post', { postId: id });
+            closeDropdown();
+            input.value = '';
+          });
+        });
+
+        const footer = dropdown.querySelector('.tsearch-footer');
+        if (footer) {
+          footer.addEventListener('click', () => {
+            if (typeof navigateTo === 'function') navigateTo('search', { q: currentQuery });
+            closeDropdown();
+            input.value = '';
+          });
+        }
+      }
+
+      async function runSearch(q) {
+        if (!q || !window.DEVIT_CONFIG) return;
+        const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.DEVIT_CONFIG;
+
+        // Use supabase client if available, else raw fetch
+        try {
+          if (window.supabase && typeof window.supabase.from === 'function') {
+            const [{ data: users }, { data: posts }] = await Promise.all([
+              window.supabase.from('profiles')
+                .select('id, username, full_name, avatar_url')
+                .or(`username.ilike.%${q}%,full_name.ilike.%${q}%`)
+                .limit(5),
+              window.supabase.from('posts')
+                .select('id, content, author_id')
+                .ilike('content', `%${q}%`)
+                .limit(4),
+            ]);
+            renderResults(users || [], posts || [], q);
+          } else {
+            // Fallback — render empty
+            renderEmpty(q);
+          }
+        } catch(e) {
+          renderEmpty(q);
+        }
+      }
+
+      // Input event
+      input.addEventListener('focus', () => {
+        if (input.value.trim()) return;
+        renderDefault();
+      });
+
+      input.addEventListener('input', () => {
+        const q = input.value.trim();
+        currentQuery = q;
+        clearTimeout(debounceTimer);
+        if (!q) { renderDefault(); return; }
+        renderLoading();
+        debounceTimer = setTimeout(() => runSearch(q), 280);
+      });
+
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeDropdown(); input.blur(); }
+        if (e.key === 'Enter' && currentQuery) {
+          if (typeof navigateTo === 'function') navigateTo('search', { q: currentQuery });
+          closeDropdown();
+        }
+      });
+
+      // Close on outside click
+      document.addEventListener('click', e => {
+        if (!searchWrap.contains(e.target)) closeDropdown();
+      }, true);
+    }
+
+    // Delay to let app.js render the topbar
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => setTimeout(initSearchDropdown, 500));
+    } else {
+      setTimeout(initSearchDropdown, 500);
+    }
+  })();
+  </script>
+ <script>
+    // Modal close
+    document.getElementById('modal-close-btn')?.addEventListener('click', () => {
+      document.getElementById('modal-overlay')?.classList.remove('open');
+    });
+    document.getElementById('modal-overlay')?.addEventListener('click', e => {
+      if (e.target === document.getElementById('modal-overlay')) {
+        document.getElementById('modal-overlay')?.classList.remove('open');
+      }
+    });
+
+    // Like button pop animation (delegated)
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('.like-btn');
+      if (btn) {
+        btn.classList.remove('liked');
+        void btn.offsetWidth; // reflow
+        btn.classList.add('liked');
+      }
+    });
+
+    // Ripple on interactive elements
+    document.addEventListener('pointerdown', e => {
+      const el = e.target.closest('button, .sidebar-link, .bnav-btn, .post-card');
+      if (!el || el.disabled) return;
+      const rect = el.getBoundingClientRect();
+      const r = document.createElement('span');
+      r.className = 'ripple';
+      const size = Math.max(rect.width, rect.height);
+      r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+      el.style.position = el.style.position || 'relative';
+      el.style.overflow = 'hidden';
+      el.appendChild(r);
+      setTimeout(() => r.remove(), 500);
+    });
+
+  </script>
+
+  <!-- ═══════════════════════════════════════════════════
+       ONLYPLANES FEATURE UPGRADES — Injected Overlays
+       ═══════════════════════════════════════════════════ -->
+
+  <!-- ── SPOTTING LOG PAGE ─────────────────────────── -->
+  <div id="spotlog-page" style="display:none;position:fixed;inset:0;z-index:450;background:var(--bg-void);overflow-y:auto;padding-top:var(--topbar-h);">
+    <div class="spotlog-page">
+      <div class="spotlog-header">
+        <div class="spotlog-header-top">
+          <div class="spotlog-title">✈ Spotting Log</div>
+          <div class="spotlog-count-badge" id="spotlog-count-badge">0 aircraft</div>
+        </div>
+        <div class="spotlog-sub">Your personal aviation lifelist</div>
+      </div>
+      <div class="spotlog-stats">
+        <div class="spotlog-stat-card">
+          <div class="spotlog-stat-num" id="sl-stat-total">0</div>
+          <div class="spotlog-stat-label">Spotted</div>
+        </div>
+        <div class="spotlog-stat-card">
+          <div class="spotlog-stat-num" id="sl-stat-types">0</div>
+          <div class="spotlog-stat-label">Types</div>
+        </div>
+        <div class="spotlog-stat-card">
+          <div class="spotlog-stat-num" id="sl-stat-airports">0</div>
+          <div class="spotlog-stat-label">Airports</div>
+        </div>
+      </div>
+      <div class="spotlog-add-row">
+        <input class="spotlog-reg-input" id="sl-reg-input" type="text" placeholder="REG e.g. G-EUCA" maxlength="10" autocomplete="off" autocapitalize="characters">
+        <input class="spotlog-reg-input" id="sl-airport-input" type="text" placeholder="ICAO / Airport" maxlength="6" autocomplete="off" autocapitalize="characters" style="max-width:120px">
+        <button class="spotlog-add-btn" id="sl-add-btn"><i class="fa-solid fa-plus"></i> Log</button>
+      </div>
+      <div class="spotlog-filter-row">
+        <div class="spotlog-filter-chip active" data-filter="all">All</div>
+        <div class="spotlog-filter-chip" data-filter="widebody">Wide-body</div>
+        <div class="spotlog-filter-chip" data-filter="narrowbody">Narrow-body</div>
+        <div class="spotlog-filter-chip" data-filter="regional">Regional</div>
+        <div class="spotlog-filter-chip" data-filter="military">Military</div>
+        <div class="spotlog-filter-chip" data-filter="ga">GA / Private</div>
+      </div>
+      <div class="spotlog-list" id="spotlog-list">
+        <div class="spotlog-empty" id="spotlog-empty">
+          <i class="fa-solid fa-binoculars"></i>
+          <div class="spotlog-empty-title">No aircraft logged yet</div>
+          <div class="spotlog-empty-sub">Enter a registration above to start your aviation lifelist. Every plane you spot goes here.</div>
+        </div>
+      </div>
+    </div>
+    <button onclick="document.getElementById('spotlog-page').style.display='none'" style="position:fixed;top:calc(var(--topbar-h) + 12px);right:16px;z-index:460;width:36px;height:36px;border-radius:50%;background:var(--bg-elevated);border:1px solid var(--border-mid);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;font-size:15px;"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <!-- ── FLYOVERS PAGE ──────────────────────────────── -->
+  <div id="flyovers-page" style="display:none;position:fixed;inset:0;z-index:450;background:#000;padding-top:var(--topbar-h);">
+    <div class="flyovers-feed" id="flyovers-feed"></div>
+    <button onclick="document.getElementById('flyovers-page').style.display='none'" style="position:fixed;top:calc(var(--topbar-h) + 12px);right:16px;z-index:460;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.15);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <!-- ── EARN YOUR WINGS PAGE ───────────────────────── -->
+  <div id="wings-page-overlay" style="display:none;position:fixed;inset:0;z-index:450;background:var(--bg-void);overflow-y:auto;padding-top:var(--topbar-h);">
+    <div class="wings-page">
+      <div class="wings-header">
+        <div class="wings-header-title">🏅 Earn Your Wings</div>
+        <div class="wings-header-sub">Achieve milestones to earn aviation rank badges</div>
+      </div>
+      <div style="padding:16px 20px;">
+        <div class="wings-rank-display">
+          <div class="wings-rank-label">Current Rank</div>
+          <div class="wings-rank-name">Student Pilot</div>
+          <div class="wings-xp-bar-wrap"><div class="wings-xp-bar-fill" style="width:18%"></div></div>
+          <div class="wings-xp-label"><span>180 XP</span><span>1,000 XP to First Officer</span></div>
+        </div>
+      </div>
+      <div class="wings-sections">
+        <div>
+          <div class="wings-section-title">🎖 Spotting Badges</div>
+          <div class="wings-badge-grid">
+            <div class="wings-badge-card unlocked">
+              <div class="wings-badge-unlocked-tag">Earned</div>
+              <div class="wings-badge-icon">🎯</div>
+              <div class="wings-badge-name">First Spot</div>
+              <div class="wings-badge-desc">Log your first aircraft registration</div>
+              <div class="wings-badge-progress"><div class="wings-badge-progress-fill" style="width:100%"></div></div>
+            </div>
+            <div class="wings-badge-card locked">
+              <div class="wings-badge-icon">🌍</div>
+              <div class="wings-badge-name">Globe Trotter</div>
+              <div class="wings-badge-desc">Post from 5 different countries</div>
+              <div class="wings-badge-progress"><div class="wings-badge-progress-fill" style="width:20%"></div></div>
+            </div>
+            <div class="wings-badge-card locked">
+              <div class="wings-badge-icon">🌙</div>
+              <div class="wings-badge-name">Night Owl</div>
+              <div class="wings-badge-desc">Post a night spotting photo that trends</div>
+              <div class="wings-badge-progress"><div class="wings-badge-progress-fill" style="width:0%"></div></div>
+            </div>
+            <div class="wings-badge-card locked">
+              <div class="wings-badge-icon">📡</div>
+              <div class="wings-badge-name">Type Rated</div>
+              <div class="wings-badge-desc">Correctly identify 10 different aircraft types</div>
+              <div class="wings-badge-progress"><div class="wings-badge-progress-fill" style="width:30%"></div></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="wings-section-title">✈ Community Badges</div>
+          <div class="wings-badge-grid">
+            <div class="wings-badge-card locked">
+              <div class="wings-badge-icon">⭐</div>
+              <div class="wings-badge-name">First Officer</div>
+              <div class="wings-badge-desc">Reach 100 upvotes on spotting photos</div>
+              <div class="wings-badge-progress"><div class="wings-badge-progress-fill" style="width:45%"></div></div>
+            </div>
+            <div class="wings-badge-card locked">
+              <div class="wings-badge-icon">👑</div>
+              <div class="wings-badge-name">Fleet Captain</div>
+              <div class="wings-badge-desc">Log 100+ different aircraft registrations</div>
+              <div class="wings-badge-progress"><div class="wings-badge-progress-fill" style="width:5%"></div></div>
+            </div>
+            <div class="wings-badge-card locked">
+              <div class="wings-badge-icon">📸</div>
+              <div class="wings-badge-name">Lensman</div>
+              <div class="wings-badge-desc">Share 50 spotting photos with the community</div>
+              <div class="wings-badge-progress"><div class="wings-badge-progress-fill" style="width:12%"></div></div>
+            </div>
+            <div class="wings-badge-card locked">
+              <div class="wings-badge-icon">🗺</div>
+              <div class="wings-badge-name">Pathfinder</div>
+              <div class="wings-badge-desc">Pin 10 spotting locations on the community map</div>
+              <div class="wings-badge-progress"><div class="wings-badge-progress-fill" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button onclick="document.getElementById('wings-page-overlay').style.display='none'" style="position:fixed;top:calc(var(--topbar-h) + 12px);right:16px;z-index:460;width:36px;height:36px;border-radius:50%;background:var(--bg-elevated);border:1px solid var(--border-mid);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;font-size:15px;"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <!-- ── TAIL NUMBER LOOKUP OVERLAY ────────────────── -->
+  <div id="tailnum-overlay" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(4,12,26,0.92);backdrop-filter:blur(18px);align-items:center;justify-content:center;padding:20px;">
+    <div style="width:100%;max-width:420px;background:var(--bg-surface);border:1px solid var(--border-mid);border-radius:var(--radius-xl);overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,0.7);">
+      <div style="padding:20px 20px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="font-family:var(--font-display);font-weight:800;font-size:18px;letter-spacing:-0.02em;color:var(--text-primary);display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-magnifying-glass-location" style="color:var(--cyan)"></i> Tail Number Lookup</div>
+        <button onclick="document.getElementById('tailnum-overlay').style.display='none'" style="width:32px;height:32px;border-radius:50%;background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-muted);display:flex;align-items:center;justify-content:center;font-size:14px;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div style="padding:16px 20px 20px;">
+        <div class="tailnum-input-row">
+          <input class="tailnum-input" id="tl-overlay-input" type="text" placeholder="e.g. N172AB" maxlength="10" autocomplete="off" autocapitalize="characters">
+          <button class="tailnum-lookup-btn" id="tl-overlay-btn"><i class="fa-solid fa-search"></i> Look up</button>
+        </div>
+        <div id="tl-overlay-loading" class="tailnum-loading" style="display:none;"><div class="tailnum-spinner"></div> Searching registry…</div>
+        <div class="tailnum-result" id="tl-overlay-result">
+          <div class="tailnum-result-reg" id="tl-res-reg">N172AB</div>
+          <div class="tailnum-result-type" id="tl-res-type">Cessna 172 Skyhawk</div>
+          <div class="tailnum-result-meta" id="tl-res-meta">
+            <span class="tailnum-meta-chip"><i class="fa-solid fa-calendar"></i> <span id="tl-res-year">2018</span></span>
+            <span class="tailnum-meta-chip"><i class="fa-solid fa-building"></i> <span id="tl-res-operator">Private</span></span>
+            <span class="tailnum-meta-chip"><i class="fa-solid fa-flag"></i> <span id="tl-res-country">USA</span></span>
+          </div>
+          <button class="tailnum-use-btn" id="tl-use-in-post">
+            <i class="fa-solid fa-plus"></i> Use in new post
+          </button>
+        </div>
+        <div style="margin-top:12px;padding:10px 14px;background:var(--bg-elevated);border-radius:var(--radius-md);font-size:12px;color:var(--text-muted);line-height:1.5;">
+          <i class="fa-solid fa-circle-info" style="color:var(--cyan);margin-right:5px"></i>
+          Enter any ICAO or FAA registration. Data sourced from public aviation registries.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       FEATURE UPGRADE JAVASCRIPT
+       ══════════════════════════════════════════════════ -->
+  <script>
+  (function() {
+
+    /* ── Navigation hook for new pages ──────────────── */
+    function initNewNavHooks() {
+      // Bottom nav
+      document.querySelectorAll('.bnav-btn[data-nav]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const nav = btn.dataset.nav;
+          if (nav === 'spotlog') {
+            document.getElementById('spotlog-page').style.display = 'block';
+            renderSpotLog();
+          } else if (nav === 'flyovers') {
+            document.getElementById('flyovers-page').style.display = 'block';
+            renderFlyovers();
+          }
+          // Update active state
+          document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        });
+      });
+
+      // Sidebar links (if any exist for wings)
+      document.addEventListener('click', e => {
+        const el = e.target.closest('[data-new-nav]');
+        if (!el) return;
+        const nav = el.dataset.newNav;
+        if (nav === 'wings') document.getElementById('wings-page-overlay').style.display = 'block';
+        if (nav === 'tailnum') {
+          const tl = document.getElementById('tailnum-overlay');
+          tl.style.display = 'flex';
+        }
+      });
+    }
+
+    /* ── Tail Number Lookup ──────────────────────────── */
+    // Mock aircraft database
+    const AIRCRAFT_DB = {
+      'G-EUCA': { type: 'Airbus A319-100', year: '2001', operator: 'British Airways', country: 'UK', category: 'narrowbody', icon: '✈️' },
+      'N172AB': { type: 'Cessna 172 Skyhawk', year: '2018', operator: 'Private', country: 'USA', category: 'ga', icon: '🛩️' },
+      'D-AINA': { type: 'Airbus A380-841', year: '2010', operator: 'Lufthansa', country: 'Germany', category: 'widebody', icon: '✈️' },
+      'JA8089': { type: 'Boeing 747-400', year: '1992', operator: 'JAL', country: 'Japan', category: 'widebody', icon: '✈️' },
+      'VH-OQB': { type: 'Airbus A380-842', year: '2008', operator: 'Qantas', country: 'Australia', category: 'widebody', icon: '✈️' },
+      'HL7630': { type: 'Airbus A380-861', year: '2011', operator: 'Korean Air', country: 'South Korea', category: 'widebody', icon: '✈️' },
+      'N1QH':   { type: 'Boeing 787-8', year: '2015', operator: 'United Airlines', country: 'USA', category: 'widebody', icon: '✈️' },
+    };
+
+    function lookupTailNum(reg) {
+      const clean = reg.toUpperCase().replace(/\s/g,'');
+      if (AIRCRAFT_DB[clean]) return { reg: clean, ...AIRCRAFT_DB[clean] };
+      // Generate plausible random data for unknown registrations
+      const types = ['Boeing 737-800', 'Airbus A320neo', 'Embraer E175', 'Boeing 777-300ER', 'ATR 72-600', 'Bombardier CRJ-900'];
+      const operators = ['Charter Co', 'Regional Air', 'National Carrier', 'Private'];
+      const countries = { 'G-': 'UK', 'N': 'USA', 'D-': 'Germany', 'F-': 'France', 'OE-': 'Austria', 'TC-': 'Turkey', 'VH-': 'Australia' };
+      let country = 'Unknown';
+      for (const [prefix, c] of Object.entries(countries)) { if (clean.startsWith(prefix)) { country = c; break; } }
+      if (clean.length < 2) return null;
+      return {
+        reg: clean,
+        type: types[clean.charCodeAt(0) % types.length],
+        year: String(2000 + (clean.charCodeAt(1) % 24)),
+        operator: operators[clean.charCodeAt(clean.length-1) % operators.length],
+        country,
+        category: 'narrowbody',
+        icon: '✈️'
+      };
+    }
+
+    function initTailNumLookup() {
+      const input = document.getElementById('tl-overlay-input');
+      const btn = document.getElementById('tl-overlay-btn');
+      const loading = document.getElementById('tl-overlay-loading');
+      const result = document.getElementById('tl-overlay-result');
+      const overlay = document.getElementById('tailnum-overlay');
+
+      if (!input || !btn) return;
+
+      function doLookup() {
+        const reg = input.value.trim();
+        if (!reg) return;
+        loading.style.display = 'flex';
+        result.classList.remove('visible');
+        setTimeout(() => {
+          loading.style.display = 'none';
+          const data = lookupTailNum(reg);
+          if (data) {
+            document.getElementById('tl-res-reg').textContent = data.reg;
+            document.getElementById('tl-res-type').textContent = data.type;
+            document.getElementById('tl-res-year').textContent = data.year;
+            document.getElementById('tl-res-operator').textContent = data.operator;
+            document.getElementById('tl-res-country').textContent = data.country;
+            result.classList.add('visible');
+          }
+        }, 900);
+      }
+
+      btn.addEventListener('click', doLookup);
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') doLookup(); });
+      input.addEventListener('input', () => { input.value = input.value.toUpperCase(); });
+
+      // "Use in post" triggers new post modal with prefilled content
+      document.getElementById('tl-use-in-post')?.addEventListener('click', () => {
+        overlay.style.display = 'none';
+        const reg = document.getElementById('tl-res-reg')?.textContent || '';
+        const type = document.getElementById('tl-res-type')?.textContent || '';
+        // Try to open native post composer
+        const postBtn = document.getElementById('bnav-post-btn');
+        if (postBtn) {
+          postBtn.click();
+          setTimeout(() => {
+            const ta = document.querySelector('#modal-body textarea, .post-compose-textarea');
+            if (ta) ta.value = `Spotted ${reg} (${type}) today! ✈️ `;
+          }, 300);
+        }
+      });
+
+      // Close on backdrop click
+      overlay.addEventListener('click', e => {
+        if (e.target === overlay) overlay.style.display = 'none';
+      });
+
+      // Keyboard shortcut T for tail lookup
+      document.addEventListener('keydown', e => {
+        if (e.key === 't' && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+          overlay.style.display = 'flex';
+          setTimeout(() => input?.focus(), 100);
+        }
+      });
+    }
+
+    /* ── Spotting Log ────────────────────────────────── */
+    // In-memory array — seeded from Supabase on initSpotLog
+    let spotLog = [];
+
+    async function loadSpotLog() {
+      if (!window.sb || !window.State?.user?.id) {
+        // Guest fallback: keep array empty (no localStorage)
+        return;
+      }
+      try {
+        const { data } = await window.sb.from('op_spotlog')
+          .select('id, registration, aircraft_type, category, airport, spotted_at, ts')
+          .eq('user_id', window.State.user.id)
+          .order('ts', { ascending: false })
+          .limit(500);
+        spotLog = (data || []).map(r => ({
+          _id:      r.id,
+          reg:      r.registration,
+          type:     r.aircraft_type || 'Unknown type',
+          category: r.category || 'default',
+          airport:  r.airport || '',
+          date:     new Date(r.spotted_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' }),
+          ts:       r.ts || new Date(r.spotted_at).getTime(),
+        }));
+      } catch(e) { console.warn('[Spotlog] Load failed', e); }
+    }
+
+    function saveSpotLog() {
+      // No-op: writes go directly to Supabase in the addBtn handler
+    }
+
+    function renderSpotLog() {
+      const list = document.getElementById('spotlog-list');
+      const empty = document.getElementById('spotlog-empty');
+      const countBadge = document.getElementById('spotlog-count-badge');
+      const statTotal = document.getElementById('sl-stat-total');
+      const statTypes = document.getElementById('sl-stat-types');
+      const statAirports = document.getElementById('sl-stat-airports');
+      if (!list) return;
+
+      countBadge.textContent = `${spotLog.length} aircraft`;
+      statTotal.textContent = spotLog.length;
+      const uniqueTypes = new Set(spotLog.map(e => e.type)).size;
+      const uniqueAirports = new Set(spotLog.filter(e=>e.airport).map(e => e.airport)).size;
+      statTypes.textContent = uniqueTypes;
+      statAirports.textContent = uniqueAirports;
+
+      if (spotLog.length === 0) {
+        empty.style.display = 'block';
+        // Clear old entries
+        list.querySelectorAll('.spotlog-entry').forEach(el => el.remove());
+        return;
+      }
+      empty.style.display = 'none';
+      // Re-render
+      list.querySelectorAll('.spotlog-entry').forEach(el => el.remove());
+      const icons = { widebody: '✈️', narrowbody: '🛫', regional: '🛩️', military: '🛡️', ga: '⛽', default: '✈️' };
+      spotLog.slice().forEach(entry => {
+        const div = document.createElement('div');
+        div.className = 'spotlog-entry';
+        div.innerHTML = `
+          <div class="spotlog-entry-icon">${icons[entry.category] || icons.default}</div>
+          <div class="spotlog-entry-info">
+            <div class="spotlog-entry-reg">${escHtml(entry.reg)}</div>
+            <div class="spotlog-entry-type">${escHtml(entry.type || 'Unknown type')}</div>
+          </div>
+          <div class="spotlog-entry-meta">
+            <div class="spotlog-entry-date">${entry.date}</div>
+            ${entry.airport ? `<div class="spotlog-entry-airport">${escHtml(entry.airport)}</div>` : ''}
+          </div>`;
+        list.appendChild(div);
+      });
+    }
+
+    function initSpotLog() {
+      const input = document.getElementById('sl-reg-input');
+      const airportInput = document.getElementById('sl-airport-input');
+      const addBtn = document.getElementById('sl-add-btn');
+      if (!addBtn) return;
+
+      // Load from Supabase when panel opens
+      loadSpotLog().then(renderSpotLog);
+
+      input?.addEventListener('input', () => { input.value = input.value.toUpperCase(); });
+      airportInput?.addEventListener('input', () => { airportInput.value = airportInput.value.toUpperCase(); });
+
+      addBtn.addEventListener('click', async () => {
+        const reg = input?.value.trim();
+        if (!reg || reg.length < 2) return;
+        const data = lookupTailNum(reg);
+        const airport = airportInput?.value.trim();
+        const now = new Date();
+        const entry = {
+          reg: reg.toUpperCase(),
+          type: data?.type || 'Unknown type',
+          category: data?.category || 'default',
+          airport: airport || '',
+          date: now.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' }),
+          ts: now.getTime()
+        };
+        spotLog.unshift(entry); // optimistic prepend
+        renderSpotLog();
+        if (input) input.value = '';
+        if (airportInput) airportInput.value = '';
+        showFeatureToast(`✈ ${reg.toUpperCase()} logged to your spotting list`);
+
+        // Persist to Supabase (fire-and-forget)
+        if (window.sb && window.State?.user?.id) {
+          const { data: row, error } = await window.sb.from('op_spotlog').insert({
+            user_id:      window.State.user.id,
+            registration: entry.reg,
+            aircraft_type: entry.type,
+            category:     entry.category,
+            airport:      entry.airport || null,
+            spotted_at:   now.toISOString(),
+            ts:           entry.ts,
+          }).select('id').single();
+          if (!error && row) entry._id = row.id;
+        }
+      });
+
+      // Filter chips
+      document.querySelectorAll('.spotlog-filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          document.querySelectorAll('.spotlog-filter-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          // TODO: filter rendering
+        });
+      });
+    }
+
+    /* ── Flyovers ────────────────────────────────────── */
+    const FLYOVER_MOCK = [
+      { reg: 'G-EZPK', aircraft: 'Airbus A320neo', type: 'Takeoff Roll', caption: 'Full power departure from LGW RWY 26L. LEAP-1A engines absolutely screaming 🔥', author: 'SpotterMike', likes: '2.4k', comments: '87', time: '4h' },
+      { reg: 'N1QH', aircraft: 'Boeing 787-8', type: 'Low Pass', caption: 'United heavy coming in for a visual approach to 28L at LAX. Perfect evening light ✨', author: 'AvGeekLA', likes: '5.1k', comments: '143', time: '6h' },
+      { reg: 'D-AINA', aircraft: 'Airbus A380', type: 'Engine Startup', caption: 'The sound of all four Trent 970s spinning up is just unreal. Never gets old 🛫', author: 'LH_Spotter', likes: '8.7k', comments: '312', time: '12h' },
+      { reg: 'JA8089', aircraft: 'Boeing 747-400', type: 'Landing', caption: 'Rare 744 arrival at NRT. One of the last classic queens still flying revenue service', author: 'JAL_Fanseat', likes: '11k', comments: '428', time: '1d' },
+    ];
+
+    function renderFlyovers() {
+      const feed = document.getElementById('flyovers-feed');
+      if (!feed || feed.children.length > 0) return;
+      FLYOVER_MOCK.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'flyover-card';
+        card.innerHTML = `
+          <div class="flyover-video-mock">
+            <div class="tracker-map-grid"></div>
+            <div class="plane-icon">✈</div>
+          </div>
+          <div class="flyover-gradient"></div>
+          <div class="flyover-type-tag"><i class="fa-solid fa-video"></i> ${escHtml(item.type)}</div>
+          <div class="flyover-info">
+            <div class="flyover-reg"><div class="flyover-reg-dot"></div>${escHtml(item.reg)}</div>
+            <div class="flyover-aircraft-name">${escHtml(item.aircraft)}</div>
+            <div class="flyover-caption">${escHtml(item.caption)}</div>
+            <div class="flyover-author">
+              <div class="flyover-author-avatar">${item.author.slice(0,2).toUpperCase()}</div>
+              <div class="flyover-author-name">@${escHtml(item.author)}</div>
+            </div>
+          </div>
+          <div class="flyover-actions">
+            <button class="flyover-action-btn">
+              <i class="fa-solid fa-heart"></i>
+              <span class="flyover-action-count">${item.likes}</span>
+            </button>
+            <button class="flyover-action-btn">
+              <i class="fa-solid fa-comment"></i>
+              <span class="flyover-action-count">${item.comments}</span>
+            </button>
+            <button class="flyover-action-btn">
+              <i class="fa-solid fa-share"></i>
+            </button>
+            <button class="flyover-action-btn" style="font-size:20px;background:none;border:none;">
+              <span>${item.aircraft.includes('A380') ? '🛫' : item.aircraft.includes('787') ? '✈️' : '🛩️'}</span>
+            </button>
+          </div>`;
+        feed.appendChild(card);
+      });
+    }
+
+    /* ── Advanced Search Filters (inject into explore page) ─── */
+    function injectSearchFilters() {
+      const main = document.getElementById('main');
+      if (!main) return;
+      const observer = new MutationObserver(() => {
+        const hasExplore = main.querySelector('.explore-page, [class*="explore"], h1');
+        if (!hasExplore) return;
+        if (main.querySelector('.advsearch-bar')) return;
+        const bar = document.createElement('div');
+        bar.className = 'advsearch-bar';
+        bar.innerHTML = `
+          <div class="advsearch-filters">
+            <div class="advsearch-chip active" data-filter="all"><i class="fa-solid fa-globe"></i> All</div>
+            <div class="advsearch-chip" data-filter="a380"><i class="fa-solid fa-plane"></i> A380</div>
+            <div class="advsearch-chip" data-filter="b747"><i class="fa-solid fa-plane-departure"></i> B747</div>
+            <div class="advsearch-chip active-amber" data-filter="lgw"><i class="fa-solid fa-location-dot"></i> LGW</div>
+            <div class="advsearch-chip" data-filter="heathrow"><i class="fa-solid fa-location-dot"></i> LHR</div>
+            <div class="advsearch-chip" data-filter="jfk"><i class="fa-solid fa-location-dot"></i> JFK</div>
+            <div class="advsearch-chip" data-filter="ba"><i class="fa-solid fa-star"></i> British Airways</div>
+            <div class="advsearch-chip" data-filter="military"><i class="fa-solid fa-shield-halved"></i> Military</div>
+            <div class="advsearch-chip" data-filter="nightspot"><i class="fa-solid fa-moon"></i> Night Spotting</div>
+          </div>`;
+        main.prepend(bar);
+        bar.querySelectorAll('.advsearch-chip').forEach(chip => {
+          chip.addEventListener('click', () => {
+            document.querySelectorAll('.advsearch-chip').forEach(c => c.classList.remove('active', 'active-amber'));
+            chip.classList.add('active');
+            showFeatureToast(`Filtering by: ${chip.textContent.trim()}`);
+          });
+        });
+      });
+      observer.observe(main, { childList: true, subtree: false });
+    }
+
+    /* ── Rightbar: Tail Lookup + Tracker Teaser ─────────────── */
+    function injectRightbarWidgets() {
+      const rb = document.getElementById('rightbar');
+      if (!rb) return;
+      const observer = new MutationObserver(() => {
+        if (rb.querySelector('.rb-tailnum-widget')) return;
+        // Tail number widget
+        const tw = document.createElement('div');
+        tw.className = 'rb-tailnum-widget';
+        tw.style.marginBottom = '14px';
+        tw.innerHTML = `
+          <div class="rb-widget-title"><i class="fa-solid fa-magnifying-glass-location"></i> Tail Number Lookup</div>
+          <div class="tailnum-input-row" style="gap:6px">
+            <input class="tailnum-input" id="rb-tailnum-input" type="text" placeholder="e.g. G-EUCA" maxlength="10" style="font-size:13px;padding:9px 12px;">
+            <button class="tailnum-lookup-btn" id="rb-tailnum-btn" style="padding:9px 14px;font-size:12px;"><i class="fa-solid fa-search"></i></button>
+          </div>
+          <div id="rb-tailnum-loading" class="tailnum-loading" style="display:none;font-size:12px;"><div class="tailnum-spinner"></div>Searching…</div>
+          <div class="tailnum-result" id="rb-tailnum-result" style="padding:12px">
+            <div class="tailnum-result-reg" id="rb-res-reg" style="font-size:18px"></div>
+            <div class="tailnum-result-type" id="rb-res-type" style="font-size:13px;margin-bottom:6px"></div>
+            <div class="tailnum-result-meta" id="rb-res-meta">
+              <span class="tailnum-meta-chip"><i class="fa-solid fa-calendar"></i><span id="rb-res-year"></span></span>
+              <span class="tailnum-meta-chip"><i class="fa-solid fa-building"></i><span id="rb-res-op"></span></span>
+            </div>
+          </div>`;
+        rb.prepend(tw);
+
+        // Tracker teaser
+        const tt = document.createElement('div');
+        tt.className = 'tracker-teaser';
+        tt.style.marginBottom = '14px';
+        tt.innerHTML = `
+          <div class="tracker-map-mock">
+            <div class="tracker-map-grid"></div>
+            <div class="tracker-plane-dot"></div>
+          </div>
+          <div class="tracker-teaser-body">
+            <div class="tracker-teaser-title">
+              Live Flight Tracker
+              <span class="tracker-live-badge">LIVE</span>
+            </div>
+            <div class="tracker-teaser-sub">Tap to see aircraft near you in real-time. Spot a plane → instant post.</div>
+          </div>`;
+        rb.prepend(tt);
+
+        // Wings teaser
+        const wt = document.createElement('div');
+        wt.style.cssText = 'background:var(--bg-surface);border:1px solid var(--border-mid);border-radius:var(--radius-xl);padding:18px;margin-bottom:14px;cursor:pointer;';
+        wt.dataset.newNav = 'wings';
+        wt.innerHTML = `
+          <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);margin-bottom:8px;display:flex;align-items:center;gap:6px;"><i class="fa-solid fa-award"></i> Earn Your Wings</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Student Pilot</div>
+          <div style="height:6px;background:var(--bg-elevated);border-radius:999px;overflow:hidden;margin-bottom:6px"><div style="width:18%;height:100%;background:linear-gradient(90deg,var(--cyan),#7dd3fc);border-radius:999px"></div></div>
+          <div style="font-size:11px;color:var(--text-muted)">180 / 1,000 XP — tap to see badges</div>`;
+        rb.prepend(wt);
+
+        initRightbarLookup();
+      });
+      observer.observe(rb, { childList: true });
+    }
+
+    function initRightbarLookup() {
+      const input = document.getElementById('rb-tailnum-input');
+      const btn = document.getElementById('rb-tailnum-btn');
+      const loading = document.getElementById('rb-tailnum-loading');
+      const result = document.getElementById('rb-tailnum-result');
+      if (!input || !btn) return;
+      input.addEventListener('input', () => { input.value = input.value.toUpperCase(); });
+      function doLookup() {
+        const reg = input.value.trim();
+        if (!reg) return;
+        loading.style.display = 'flex';
+        result.classList.remove('visible');
+        setTimeout(() => {
+          loading.style.display = 'none';
+          const data = lookupTailNum(reg);
+          if (data) {
+            document.getElementById('rb-res-reg').textContent = data.reg;
+            document.getElementById('rb-res-type').textContent = data.type;
+            document.getElementById('rb-res-year').textContent = data.year;
+            document.getElementById('rb-res-op').textContent = data.operator;
+            result.classList.add('visible');
+          }
+        }, 700);
+      }
+      btn.addEventListener('click', doLookup);
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') doLookup(); });
+    }
+
+    /* ── Trivia Widget (rightbar) ────────────────────── */
+    function injectTriviaWidget() {
+      const rb = document.getElementById('rightbar');
+      if (!rb) return;
+      const TRIVIA = [
+        {
+          q: 'What is the maximum passenger capacity of the Airbus A380 in an all-economy configuration?',
+          options: ['555', '853', '700', '615'],
+          correct: 1
+        },
+        {
+          q: 'Which aircraft was the first to fly with fly-by-wire controls as a primary production feature?',
+          options: ['Boeing 777', 'Airbus A320', 'Concorde', 'MD-11'],
+          correct: 1
+        }
+      ];
+      const q = TRIVIA[Math.floor(Math.random() * TRIVIA.length)];
+      let answered = false;
+      const tw = document.createElement('div');
+      tw.className = 'trivia-widget';
+      tw.innerHTML = `
+        <div class="trivia-label"><i class="fa-solid fa-brain"></i> Weekly Trivia</div>
+        <div class="trivia-question">${q.q}</div>
+        <div class="trivia-options">
+          ${q.options.map((opt, i) => `<button class="trivia-option" data-idx="${i}">${opt}</button>`).join('')}
+        </div>`;
+      rb.appendChild(tw);
+
+      tw.querySelectorAll('.trivia-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (answered) return;
+          answered = true;
+          const idx = parseInt(btn.dataset.idx);
+          tw.querySelectorAll('.trivia-option').forEach((b, i) => {
+            if (i === q.correct) b.classList.add('correct');
+            else if (i === idx && i !== q.correct) b.classList.add('wrong');
+          });
+          if (idx === q.correct) showFeatureToast('✅ Correct! +10 XP earned');
+          else showFeatureToast('❌ Wrong — the correct answer was highlighted');
+        });
+      });
+    }
+
+    /* ── Toast helper ────────────────────────────────── */
+    function showFeatureToast(msg) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = msg;
+      container.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
+    }
+
+    function escHtml(s) {
+      if (typeof s !== 'string') s = String(s || '');
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    /* ── Init all ────────────────────────────────────── */
+    function initAll() {
+      initNewNavHooks();
+      initTailNumLookup();
+      initSpotLog();
+      injectSearchFilters();
+      injectRightbarWidgets();
+      // Trivia injected after rightbar is ready
+      const rbObs = new MutationObserver(() => {
+        const rb = document.getElementById('rightbar');
+        if (rb && rb.children.length > 0 && !rb.querySelector('.trivia-widget')) {
+          injectTriviaWidget();
+        }
+      });
+      const rb = document.getElementById('rightbar');
+      if (rb) rbObs.observe(rb, { childList: true });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => setTimeout(initAll, 600));
+    } else {
+      setTimeout(initAll, 600);
+    }
+
+  })();
+  </script>
 </body>
 </html>
