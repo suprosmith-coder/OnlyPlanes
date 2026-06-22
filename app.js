@@ -2869,12 +2869,12 @@ function buildComposer(container) {
       const ext  = selectedVideoFile.name.split('.').pop() || 'mp4';
       const safeType = selectedVideoFile.type.startsWith('video/') ? selectedVideoFile.type : 'video/mp4';
       const path = `posts/${State.user.id}/${Date.now()}.${ext}`;
-      const { error: uploadErr } = await sb.storage.from('post-videos').upload(path, selectedVideoFile, { contentType: safeType });
+      const { error: uploadErr } = await sb.storage.from('post-files').upload(path, selectedVideoFile, { contentType: safeType });
       if (uploadErr) {
         toast('Video upload failed: ' + uploadErr.message, 'circle-exclamation');
         submitBtn.disabled = false; submitBtn.textContent = 'Post'; return;
       }
-      videoUrl = sb.storage.from('post-videos').getPublicUrl(path).data.publicUrl;
+      videoUrl = sb.storage.from('post-files').getPublicUrl(path).data.publicUrl;
     }
 
     const text = textarea.value.trim();
