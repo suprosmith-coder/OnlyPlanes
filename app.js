@@ -5907,6 +5907,12 @@ async function loadSnippets(container) {
     const snippet = { id: f.path, video_url: videoUrl, caption: '', profiles: null };
     container.appendChild(buildSnippetCard(snippet));
   });
+
+  // Force-play first video since IntersectionObserver may not fire immediately on mobile
+  setTimeout(() => {
+    const firstVideo = container.querySelector('.snip-video');
+    if (firstVideo) firstVideo.play().catch(() => {});
+  }, 300);
 }
 
 function buildSnippetCard(snippet) {
@@ -6089,7 +6095,7 @@ function buildSnippetCard(snippet) {
         progress.style.width = '0%';
       }
     });
-  }, { threshold: 0.7 });
+  }, { threshold: 0.3 });
   obs.observe(card);
 
   // Avatar / author click
