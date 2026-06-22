@@ -5865,15 +5865,16 @@ function renderSnippets(main) {
 }
 
 async function loadSnippets(container) {
-  const { data: snippets, error: snippetErr } = await sb
+  // List all files directly from the op_snippets storage bucket
+  const { data: files, error: bucketErr } = await sb.storage
     .from('op_snippets')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(20);
+    .list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
 
-  if (snippetErr) console.error('[loadSnippets] query error:', snippetErr);
+  if (bucketErr) console.error('[loadSnippets] bucket error:', bucketErr);
 
-  if (!snippets?.length) {
+  const videoFiles = (files || []).filter(f => f.name && f.name !== '.emptyFolderPlaceholder');
+
+  if (!videoFiles.length) {
     container.innerHTML = `
       <div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff">
         <div style="font-size:56px">🎬</div>
@@ -5883,18 +5884,12 @@ async function loadSnippets(container) {
     return;
   }
 
-  // Batch fetch profiles separately to avoid FK join issues
-  const authorIds = [...new Set(snippets.map(s => s.author_id).filter(Boolean))];
-  const { data: profiles } = await sb
-    .from('op_profiles')
-    .select('id, username, display_name, avatar_url')
-    .in('id', authorIds);
-  const profileMap = {};
-  (profiles || []).forEach(p => { profileMap[p.id] = p; });
-  snippets.forEach(s => { s.profiles = profileMap[s.author_id] || null; });
-
   container.innerHTML = '';
-  snippets.forEach(s => container.appendChild(buildSnippetCard(s)));
+  videoFiles.forEach(f => {
+    const videoUrl = sb.storage.from('op_snippets').getPublicUrl(f.name).data.publicUrl;
+    const snippet = { id: f.id, video_url: videoUrl, caption: '', profiles: null };
+    container.appendChild(buildSnippetCard(snippet));
+  });
 }
 
 function buildSnippetCard(snippet) {
@@ -6403,21 +6398,10 @@ function openSnippetUploadModal() {
     }
     const videoUrl = sb.storage.from("op_snippets").getPublicUrl(path).data.publicUrl;
 
-    const { error: insertErr } = await sb.from('op_snippets').insert({
-      author_id: State.user.id,
-      video_url: videoUrl,
-      caption,
-      hearts_count: 0,
-      duration: Math.round(previewVid.duration || 0),
-    });
-
-    if (insertErr) {
-      toast('Failed to post: ' + insertErr.message, 'circle-exclamation');
-    } else {
-      modal.classList.remove('open');
-      toast('Clip posted!', 'film');
-      if (State.currentView === 'clips') navigateTo('clips');
-    }
+    // No DB table — clips live purely in the op_snippets storage bucket
+    modal.classList.remove('open');
+    toast('Clip posted!', 'film');
+    if (State.currentView === 'clips') navigateTo('clips');
     postBtn.disabled = false;
     postBtn.innerHTML = '<i class="fa-solid fa-film"></i> Post Clip';
   });
