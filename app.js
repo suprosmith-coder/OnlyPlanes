@@ -5865,16 +5865,33 @@ function renderSnippets(main) {
 }
 
 async function loadSnippets(container) {
-  // List all files directly from the op_snippets storage bucket
-  const { data: files, error: bucketErr } = await sb.storage
-    .from('op_snippets')
-    .list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+  // Files are stored at posts/{user-id}/{filename}.mp4 — need to recurse subfolders
+  const allVideos = [];
 
-  if (bucketErr) console.error('[loadSnippets] bucket error:', bucketErr);
+  // List top-level folders (e.g. "posts")
+  const { data: topLevel } = await sb.storage.from('op_snippets').list('');
+  const topFolders = (topLevel || []).filter(f => !f.metadata); // folders have no metadata
 
-  const videoFiles = (files || []).filter(f => f.name && f.name !== '.emptyFolderPlaceholder');
+  for (const folder of topFolders) {
+    // List user-id subfolders inside each top folder
+    const { data: userFolders } = await sb.storage.from('op_snippets').list(folder.name);
+    const subFolders = (userFolders || []).filter(f => !f.metadata);
 
-  if (!videoFiles.length) {
+    for (const userFolder of subFolders) {
+      const folderPath = `${folder.name}/${userFolder.name}`;
+      const { data: files } = await sb.storage.from('op_snippets').list(folderPath, {
+        sortBy: { column: 'created_at', order: 'desc' }
+      });
+      (files || []).filter(f => f.metadata && f.name !== '.emptyFolderPlaceholder').forEach(f => {
+        allVideos.push({ path: `${folderPath}/${f.name}`, created_at: f.created_at });
+      });
+    }
+  }
+
+  // Sort newest first
+  allVideos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  if (!allVideos.length) {
     container.innerHTML = `
       <div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff">
         <div style="font-size:56px">🎬</div>
@@ -5885,9 +5902,9 @@ async function loadSnippets(container) {
   }
 
   container.innerHTML = '';
-  videoFiles.forEach(f => {
-    const videoUrl = sb.storage.from('op_snippets').getPublicUrl(f.name).data.publicUrl;
-    const snippet = { id: f.id, video_url: videoUrl, caption: '', profiles: null };
+  allVideos.forEach(f => {
+    const videoUrl = sb.storage.from('op_snippets').getPublicUrl(f.path).data.publicUrl;
+    const snippet = { id: f.path, video_url: videoUrl, caption: '', profiles: null };
     container.appendChild(buildSnippetCard(snippet));
   });
 }
@@ -6383,7 +6400,7 @@ function openSnippetUploadModal() {
 
     // Upload video to storage bucket
     const ext  = selectedFile.name.split(".").pop() || "mp4";
-    const path = `snippets/${State.user.id}/${Date.now()}.${ext}`;
+    const path = `posts/${State.user.id}/${Date.now()}.${ext}`;
     const safeType = selectedFile.type.startsWith("video/") ? selectedFile.type : "video/mp4";
 
     status.textContent = "Uploading video to storage...";
