@@ -1969,7 +1969,7 @@ function updatePageMeta({ title, description } = {}) {
 const viewMeta = {
   feed:          { title: 'Home Feed' },
   explore:       { title: 'Explore', description: 'Discover developers, communities, and trending topics on Devit.' },
-  snippets:      { title: 'Snippets', description: 'Short-form code videos from the developer community.' },
+  clips:         { title: 'Clips', description: 'Short-form plane spotting clips from the OnlyPlanes community.' },
   notifications:  { title: 'Notifications' },
   messages:       { title: 'Messages' },
   profile:        { title: 'Profile' },
@@ -2013,6 +2013,7 @@ function navigateTo(view) {
     settings:       renderSettings,
     'edit-profile': renderEditProfile,
     leaderboard:    renderLeaderboard,
+    clips:          renderSnippets,
   };
 
   (renderers[view] || renderFeed)(main);
@@ -5784,7 +5785,7 @@ function renderSnippets(main) {
       position:fixed;inset:0;z-index:200;background:#000;
       overflow-y:scroll;scroll-snap-type:y mandatory;
       scrollbar-width:none;-ms-overflow-style:none;
-    " role="region" aria-label="Snippets feed" aria-roledescription="Video feed — swipe up or down to navigate">
+    " role="region" aria-label="Clips feed" aria-roledescription="Video feed — swipe up or down to navigate">
       <style>#snippets-container::-webkit-scrollbar{display:none}</style>
       <div id="snippets-feed" style="width:100%;"></div>
     </div>
@@ -5800,12 +5801,12 @@ function renderSnippets(main) {
           <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
         </button>
       </div>
-      <div style="font-size:15px;font-weight:700;color:#fff;letter-spacing:0.02em" aria-hidden="true">Snippets</div>
+      <div style="font-size:15px;font-weight:700;color:#fff;letter-spacing:0.02em" aria-hidden="true">Clips</div>
       <div style="pointer-events:auto;display:flex;gap:8px;align-items:center">
         <button id="snippets-mute-btn" aria-label="Toggle mute" style="background:rgba(0,0,0,0.4);border:none;color:#fff;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)">
           <i class="fa-solid fa-volume-xmark" aria-hidden="true"></i>
         </button>
-        <button id="snippets-post-btn" aria-label="Post a snippet" style="background:var(--cyan,#ff2d6e);border:none;color:#000;height:32px;padding:0 14px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px">
+        <button id="snippets-post-btn" aria-label="Post a clip" style="background:var(--cyan,#ff2d6e);border:none;color:#000;height:32px;padding:0 14px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px">
           <i class="fa-solid fa-plus" aria-hidden="true"></i> Post
         </button>
       </div>
@@ -5874,7 +5875,7 @@ async function loadSnippets(container) {
     container.innerHTML = `
       <div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff">
         <div style="font-size:56px">🎬</div>
-        <div style="font-size:20px;font-weight:800">No Snippets Yet</div>
+        <div style="font-size:20px;font-weight:800">No Clips Yet</div>
         <div style="font-size:14px;opacity:0.6">Be the first to post one!</div>
       </div>`;
     return;
@@ -6129,7 +6130,7 @@ function buildSnippetCard(snippet) {
     } else {
       await sb.from('op_snippet_bookmarks').insert({ snippet_id: snippet.id, user_id: State.user.id });
       btn.querySelector('i').style.color = 'var(--cyan,#ff2d6e)';
-      toast('Snippet bookmarked!', 'bookmark');
+      toast('Clip bookmarked!', 'bookmark');
     }
   });
 
@@ -6138,7 +6139,7 @@ function buildSnippetCard(snippet) {
     e.stopPropagation();
     const url = snippet.video_url;
     if (navigator.share) {
-      try { await navigator.share({ title: `@${username} on Devit`, url }); } catch (_) {}
+      try { await navigator.share({ title: `@${username} on OnlyPlanes`, url }); } catch (_) {}
     } else {
       navigator.clipboard?.writeText(url).then(() => toast('Video link copied!', 'link'));
     }
@@ -6164,7 +6165,7 @@ function buildSnippetCard(snippet) {
   return card;
 }
 
-/* ── Snippet Comments Panel ──────────────────────────────────── */
+/* ── Clip Comments Panel ───────────────────────────────────────── */
 async function openSnippetComments(snippetId, card) {
   // Remove any existing panel
   document.getElementById('snip-comments-panel')?.remove();
@@ -6290,7 +6291,7 @@ async function loadSnippetComments(snippetId, container) {
 function openSnippetUploadModal() {
   const modal = $('#modal-overlay');
   const body  = $('#modal-body');
-  $('#modal-title-text').textContent = '📸 Post a Snippet';
+  $('#modal-title-text').textContent = '🎬 Post a Clip';
   modal.classList.add('open');
 
   body.innerHTML = `
@@ -6310,7 +6311,7 @@ function openSnippetUploadModal() {
         <textarea id="snippet-caption" class="auth-input" placeholder="What's this about? #hashtags @mentions" rows="2" style="resize:none"></textarea>
       </div>
       <div id="snippet-compress-status" style="display:none;font-size:12px;color:var(--cyan)"><i class="fa-solid fa-spinner fa-spin"></i> Compressing video…</div>
-      <button class="auth-btn-primary" id="snippet-post-btn" disabled><i class="fa-solid fa-film"></i> Post Snippet</button>
+      <button class="auth-btn-primary" id="snippet-post-btn" disabled><i class="fa-solid fa-film"></i> Post Clip</button>
     </div>
   `;
 
@@ -6385,7 +6386,7 @@ function openSnippetUploadModal() {
     if (uploadErr) {
       toast("Video upload failed: " + uploadErr.message, "circle-exclamation");
       postBtn.disabled = false;
-      postBtn.innerHTML = "<i class=\"fa-solid fa-film\"></i> Post Snippet";
+      postBtn.innerHTML = "<i class=\"fa-solid fa-film\"></i> Post Clip";
       status.style.display = "none";
       return;
     }
@@ -6403,11 +6404,11 @@ function openSnippetUploadModal() {
       toast('Failed to post: ' + insertErr.message, 'circle-exclamation');
     } else {
       modal.classList.remove('open');
-      toast('Snippet posted!', 'film');
-      if (State.currentView === 'snippets') navigateTo('snippets');
+      toast('Clip posted!', 'film');
+      if (State.currentView === 'clips') navigateTo('clips');
     }
     postBtn.disabled = false;
-    postBtn.innerHTML = '<i class="fa-solid fa-film"></i> Post Snippet';
+    postBtn.innerHTML = '<i class="fa-solid fa-film"></i> Post Clip';
   });
 }
 

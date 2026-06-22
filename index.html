@@ -125,8 +125,7 @@
         <span class="auth-pill"><i class="fa-solid fa-bolt"></i> Real-time DMs</span>
         <span class="auth-pill"><i class="fa-solid fa-people-group"></i> Crew boards</span>
         <span class="auth-pill auth-pill-new"><i class="fa-solid fa-hashtag-lock"></i> Tail Lookup</span>
-        <span class="auth-pill auth-pill-new"><i class="fa-solid fa-book-open"></i> Spotting Log</span>
-        <span class="auth-pill auth-pill-new"><i class="fa-solid fa-video"></i> Flyovers</span>
+        <span class="auth-pill auth-pill-new"><i class="fa-solid fa-video"></i> Clips</span>
         <span class="auth-pill auth-pill-new"><i class="fa-solid fa-shield-halved"></i> Verified Profiles</span>
         <span class="auth-pill auth-pill-new"><i class="fa-solid fa-award"></i> Earn Your Wings</span>
         <span class="auth-pill"><i class="fa-solid fa-route"></i> Route posts</span>
@@ -196,11 +195,11 @@
       <button class="bnav-btn bnav-post-btn" id="bnav-post-btn" aria-label="New post">
         <div class="bnav-post-icon"><i class="fa-solid fa-plus"></i></div>
       </button>
-      <button class="bnav-btn" data-nav="flyovers" aria-label="Flyovers">
+      <button class="bnav-btn" data-nav="clips" aria-label="Clips">
         <i class="fa-solid fa-video" style="color:var(--amber)"></i>
       </button>
-      <button class="bnav-btn" data-nav="spotlog" aria-label="Spotting Log">
-        <i class="fa-solid fa-book-open"></i>
+      <button class="bnav-btn" data-nav="leaderboard" aria-label="Leaderboard">
+        <i class="fa-solid fa-trophy"></i>
       </button>
       <button class="bnav-btn" data-nav="profile" aria-label="Profile">
         <i class="fa-solid fa-user"></i>
@@ -559,60 +558,6 @@
        ONLYPLANES FEATURE UPGRADES — Injected Overlays
        ═══════════════════════════════════════════════════ -->
 
-  <!-- ── SPOTTING LOG PAGE ─────────────────────────── -->
-  <div id="spotlog-page" style="display:none;position:fixed;inset:0;z-index:450;background:var(--bg-void);overflow-y:auto;padding-top:var(--topbar-h);">
-    <div class="spotlog-page">
-      <div class="spotlog-header">
-        <div class="spotlog-header-top">
-          <div class="spotlog-title">✈ Spotting Log</div>
-          <div class="spotlog-count-badge" id="spotlog-count-badge">0 aircraft</div>
-        </div>
-        <div class="spotlog-sub">Your personal aviation lifelist</div>
-      </div>
-      <div class="spotlog-stats">
-        <div class="spotlog-stat-card">
-          <div class="spotlog-stat-num" id="sl-stat-total">0</div>
-          <div class="spotlog-stat-label">Spotted</div>
-        </div>
-        <div class="spotlog-stat-card">
-          <div class="spotlog-stat-num" id="sl-stat-types">0</div>
-          <div class="spotlog-stat-label">Types</div>
-        </div>
-        <div class="spotlog-stat-card">
-          <div class="spotlog-stat-num" id="sl-stat-airports">0</div>
-          <div class="spotlog-stat-label">Airports</div>
-        </div>
-      </div>
-      <div class="spotlog-add-row">
-        <input class="spotlog-reg-input" id="sl-reg-input" type="text" placeholder="REG e.g. G-EUCA" maxlength="10" autocomplete="off" autocapitalize="characters">
-        <input class="spotlog-reg-input" id="sl-airport-input" type="text" placeholder="ICAO / Airport" maxlength="6" autocomplete="off" autocapitalize="characters" style="max-width:120px">
-        <button class="spotlog-add-btn" id="sl-add-btn"><i class="fa-solid fa-plus"></i> Log</button>
-      </div>
-      <div class="spotlog-filter-row">
-        <div class="spotlog-filter-chip active" data-filter="all">All</div>
-        <div class="spotlog-filter-chip" data-filter="widebody">Wide-body</div>
-        <div class="spotlog-filter-chip" data-filter="narrowbody">Narrow-body</div>
-        <div class="spotlog-filter-chip" data-filter="regional">Regional</div>
-        <div class="spotlog-filter-chip" data-filter="military">Military</div>
-        <div class="spotlog-filter-chip" data-filter="ga">GA / Private</div>
-      </div>
-      <div class="spotlog-list" id="spotlog-list">
-        <div class="spotlog-empty" id="spotlog-empty">
-          <i class="fa-solid fa-binoculars"></i>
-          <div class="spotlog-empty-title">No aircraft logged yet</div>
-          <div class="spotlog-empty-sub">Enter a registration above to start your aviation lifelist. Every plane you spot goes here.</div>
-        </div>
-      </div>
-    </div>
-    <button onclick="document.getElementById('spotlog-page').style.display='none'" style="position:fixed;top:calc(var(--topbar-h) + 12px);right:16px;z-index:460;width:36px;height:36px;border-radius:50%;background:var(--bg-elevated);border:1px solid var(--border-mid);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;font-size:15px;"><i class="fa-solid fa-xmark"></i></button>
-  </div>
-
-  <!-- ── FLYOVERS PAGE ──────────────────────────────── -->
-  <div id="flyovers-page" style="display:none;position:fixed;inset:0;z-index:450;background:#000;padding-top:var(--topbar-h);">
-    <div class="flyovers-feed" id="flyovers-feed"></div>
-    <button onclick="document.getElementById('flyovers-page').style.display='none'" style="position:fixed;top:calc(var(--topbar-h) + 12px);right:16px;z-index:460;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.15);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;"><i class="fa-solid fa-xmark"></i></button>
-  </div>
-
   <!-- ── EARN YOUR WINGS PAGE ───────────────────────── -->
   <div id="wings-page-overlay" style="display:none;position:fixed;inset:0;z-index:450;background:var(--bg-void);overflow-y:auto;padding-top:var(--topbar-h);">
     <div class="wings-page">
@@ -734,23 +679,6 @@
 
     /* ── Navigation hook for new pages ──────────────── */
     function initNewNavHooks() {
-      // Bottom nav
-      document.querySelectorAll('.bnav-btn[data-nav]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const nav = btn.dataset.nav;
-          if (nav === 'spotlog') {
-            document.getElementById('spotlog-page').style.display = 'block';
-            renderSpotLog();
-          } else if (nav === 'flyovers') {
-            document.getElementById('flyovers-page').style.display = 'block';
-            renderFlyovers();
-          }
-          // Update active state
-          document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-        });
-      });
-
       // Sidebar links (if any exist for wings)
       document.addEventListener('click', e => {
         const el = e.target.closest('[data-new-nav]');
@@ -856,187 +784,6 @@
           overlay.style.display = 'flex';
           setTimeout(() => input?.focus(), 100);
         }
-      });
-    }
-
-    /* ── Spotting Log ────────────────────────────────── */
-    // In-memory array — seeded from Supabase on initSpotLog
-    let spotLog = [];
-
-    async function loadSpotLog() {
-      if (!window.sb || !window.State?.user?.id) {
-        // Guest fallback: keep array empty (no localStorage)
-        return;
-      }
-      try {
-        const { data } = await window.sb.from('op_spotlog')
-          .select('id, registration, aircraft_type, category, airport, spotted_at, ts')
-          .eq('user_id', window.State.user.id)
-          .order('ts', { ascending: false })
-          .limit(500);
-        spotLog = (data || []).map(r => ({
-          _id:      r.id,
-          reg:      r.registration,
-          type:     r.aircraft_type || 'Unknown type',
-          category: r.category || 'default',
-          airport:  r.airport || '',
-          date:     new Date(r.spotted_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' }),
-          ts:       r.ts || new Date(r.spotted_at).getTime(),
-        }));
-      } catch(e) { console.warn('[Spotlog] Load failed', e); }
-    }
-
-    function saveSpotLog() {
-      // No-op: writes go directly to Supabase in the addBtn handler
-    }
-
-    function renderSpotLog() {
-      const list = document.getElementById('spotlog-list');
-      const empty = document.getElementById('spotlog-empty');
-      const countBadge = document.getElementById('spotlog-count-badge');
-      const statTotal = document.getElementById('sl-stat-total');
-      const statTypes = document.getElementById('sl-stat-types');
-      const statAirports = document.getElementById('sl-stat-airports');
-      if (!list) return;
-
-      countBadge.textContent = `${spotLog.length} aircraft`;
-      statTotal.textContent = spotLog.length;
-      const uniqueTypes = new Set(spotLog.map(e => e.type)).size;
-      const uniqueAirports = new Set(spotLog.filter(e=>e.airport).map(e => e.airport)).size;
-      statTypes.textContent = uniqueTypes;
-      statAirports.textContent = uniqueAirports;
-
-      if (spotLog.length === 0) {
-        empty.style.display = 'block';
-        // Clear old entries
-        list.querySelectorAll('.spotlog-entry').forEach(el => el.remove());
-        return;
-      }
-      empty.style.display = 'none';
-      // Re-render
-      list.querySelectorAll('.spotlog-entry').forEach(el => el.remove());
-      const icons = { widebody: '✈️', narrowbody: '🛫', regional: '🛩️', military: '🛡️', ga: '⛽', default: '✈️' };
-      spotLog.slice().forEach(entry => {
-        const div = document.createElement('div');
-        div.className = 'spotlog-entry';
-        div.innerHTML = `
-          <div class="spotlog-entry-icon">${icons[entry.category] || icons.default}</div>
-          <div class="spotlog-entry-info">
-            <div class="spotlog-entry-reg">${escHtml(entry.reg)}</div>
-            <div class="spotlog-entry-type">${escHtml(entry.type || 'Unknown type')}</div>
-          </div>
-          <div class="spotlog-entry-meta">
-            <div class="spotlog-entry-date">${entry.date}</div>
-            ${entry.airport ? `<div class="spotlog-entry-airport">${escHtml(entry.airport)}</div>` : ''}
-          </div>`;
-        list.appendChild(div);
-      });
-    }
-
-    function initSpotLog() {
-      const input = document.getElementById('sl-reg-input');
-      const airportInput = document.getElementById('sl-airport-input');
-      const addBtn = document.getElementById('sl-add-btn');
-      if (!addBtn) return;
-
-      // Load from Supabase when panel opens
-      loadSpotLog().then(renderSpotLog);
-
-      input?.addEventListener('input', () => { input.value = input.value.toUpperCase(); });
-      airportInput?.addEventListener('input', () => { airportInput.value = airportInput.value.toUpperCase(); });
-
-      addBtn.addEventListener('click', async () => {
-        const reg = input?.value.trim();
-        if (!reg || reg.length < 2) return;
-        const data = lookupTailNum(reg);
-        const airport = airportInput?.value.trim();
-        const now = new Date();
-        const entry = {
-          reg: reg.toUpperCase(),
-          type: data?.type || 'Unknown type',
-          category: data?.category || 'default',
-          airport: airport || '',
-          date: now.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' }),
-          ts: now.getTime()
-        };
-        spotLog.unshift(entry); // optimistic prepend
-        renderSpotLog();
-        if (input) input.value = '';
-        if (airportInput) airportInput.value = '';
-        showFeatureToast(`✈ ${reg.toUpperCase()} logged to your spotting list`);
-
-        // Persist to Supabase (fire-and-forget)
-        if (window.sb && window.State?.user?.id) {
-          const { data: row, error } = await window.sb.from('op_spotlog').insert({
-            user_id:      window.State.user.id,
-            registration: entry.reg,
-            aircraft_type: entry.type,
-            category:     entry.category,
-            airport:      entry.airport || null,
-            spotted_at:   now.toISOString(),
-            ts:           entry.ts,
-          }).select('id').single();
-          if (!error && row) entry._id = row.id;
-        }
-      });
-
-      // Filter chips
-      document.querySelectorAll('.spotlog-filter-chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-          document.querySelectorAll('.spotlog-filter-chip').forEach(c => c.classList.remove('active'));
-          chip.classList.add('active');
-          // TODO: filter rendering
-        });
-      });
-    }
-
-    /* ── Flyovers ────────────────────────────────────── */
-    const FLYOVER_MOCK = [
-      { reg: 'G-EZPK', aircraft: 'Airbus A320neo', type: 'Takeoff Roll', caption: 'Full power departure from LGW RWY 26L. LEAP-1A engines absolutely screaming 🔥', author: 'SpotterMike', likes: '2.4k', comments: '87', time: '4h' },
-      { reg: 'N1QH', aircraft: 'Boeing 787-8', type: 'Low Pass', caption: 'United heavy coming in for a visual approach to 28L at LAX. Perfect evening light ✨', author: 'AvGeekLA', likes: '5.1k', comments: '143', time: '6h' },
-      { reg: 'D-AINA', aircraft: 'Airbus A380', type: 'Engine Startup', caption: 'The sound of all four Trent 970s spinning up is just unreal. Never gets old 🛫', author: 'LH_Spotter', likes: '8.7k', comments: '312', time: '12h' },
-      { reg: 'JA8089', aircraft: 'Boeing 747-400', type: 'Landing', caption: 'Rare 744 arrival at NRT. One of the last classic queens still flying revenue service', author: 'JAL_Fanseat', likes: '11k', comments: '428', time: '1d' },
-    ];
-
-    function renderFlyovers() {
-      const feed = document.getElementById('flyovers-feed');
-      if (!feed || feed.children.length > 0) return;
-      FLYOVER_MOCK.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'flyover-card';
-        card.innerHTML = `
-          <div class="flyover-video-mock">
-            <div class="tracker-map-grid"></div>
-            <div class="plane-icon">✈</div>
-          </div>
-          <div class="flyover-gradient"></div>
-          <div class="flyover-type-tag"><i class="fa-solid fa-video"></i> ${escHtml(item.type)}</div>
-          <div class="flyover-info">
-            <div class="flyover-reg"><div class="flyover-reg-dot"></div>${escHtml(item.reg)}</div>
-            <div class="flyover-aircraft-name">${escHtml(item.aircraft)}</div>
-            <div class="flyover-caption">${escHtml(item.caption)}</div>
-            <div class="flyover-author">
-              <div class="flyover-author-avatar">${item.author.slice(0,2).toUpperCase()}</div>
-              <div class="flyover-author-name">@${escHtml(item.author)}</div>
-            </div>
-          </div>
-          <div class="flyover-actions">
-            <button class="flyover-action-btn">
-              <i class="fa-solid fa-heart"></i>
-              <span class="flyover-action-count">${item.likes}</span>
-            </button>
-            <button class="flyover-action-btn">
-              <i class="fa-solid fa-comment"></i>
-              <span class="flyover-action-count">${item.comments}</span>
-            </button>
-            <button class="flyover-action-btn">
-              <i class="fa-solid fa-share"></i>
-            </button>
-            <button class="flyover-action-btn" style="font-size:20px;background:none;border:none;">
-              <span>${item.aircraft.includes('A380') ? '🛫' : item.aircraft.includes('787') ? '✈️' : '🛩️'}</span>
-            </button>
-          </div>`;
-        feed.appendChild(card);
       });
     }
 
@@ -1227,7 +974,6 @@
     function initAll() {
       initNewNavHooks();
       initTailNumLookup();
-      initSpotLog();
       injectSearchFilters();
       injectRightbarWidgets();
       // Trivia injected after rightbar is ready
