@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.github.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.github.com https://api.allorigins.win https://*.vercel.app; img-src 'self' data: https: blob:; worker-src 'self' blob:;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://api.github.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.github.com https://api.allorigins.win https://*.vercel.app https://cdn.jsdelivr.net; img-src 'self' data: https: blob:; worker-src 'self' blob:;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="OnlyPlanes — Log. Spot. Soar. The social platform built for aviation enthusiasts. Share flight logs, spot aircraft, and connect with fellow aviators.">
   <meta name="theme-color" content="#040c1a">
@@ -243,6 +243,76 @@
       SUPABASE_URL: 'https://nynrocdgmowjgslgfdmc.supabase.co',
       SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55bnJvY2RnbW93amdzbGdmZG1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NTUxNTQsImV4cCI6MjA5MzIzMTE1NH0.280rrXAe92hxylzia2hl3ygRrG0LraDzBCGwQUeXu5U',
       SITE_URL: 'https://only-planesavgeek.vercel.app/',
+    };
+  </script>
+
+  <!-- Client-side video transcoding (ffmpeg.wasm) — normalizes every Clip upload
+       to H.264/AAC MP4 before it's stored, so playback works regardless of the
+       source format (MOV/HEVC, AVI, MKV, etc). Loaded lazily on first use. -->
+  <script type="module">
+    let _ffmpegPromise = null;
+    let _currentOnProgress = null;
+
+    async function getFFmpeg() {
+      if (_ffmpegPromise) return _ffmpegPromise;
+      _ffmpegPromise = (async () => {
+        const { FFmpeg } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js');
+        const { toBlobURL } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js');
+        const ffmpeg = new FFmpeg();
+        ffmpeg.on('progress', ({ progress }) => {
+          if (typeof progress === 'number' && progress >= 0 && progress <= 1 && _currentOnProgress) {
+            _currentOnProgress(progress);
+          }
+        });
+        const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm';
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+        return ffmpeg;
+      })();
+      return _ffmpegPromise;
+    }
+
+    window.transcodeVideoToMp4 = async function(file, { onStatus, onProgress } = {}) {
+      onStatus?.('Loading video engine…');
+      const ffmpeg = await getFFmpeg();
+      const { fetchFile } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js');
+
+      _currentOnProgress = onProgress || null;
+
+      const stamp = Date.now();
+      const inExt = (file.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
+      const inputFile  = `in_${stamp}.${inExt}`;
+      const outputFile = `out_${stamp}.mp4`;
+
+      try {
+        onStatus?.('Reading video…');
+        await ffmpeg.writeFile(inputFile, await fetchFile(file));
+
+        onStatus?.('Compressing video…');
+        // veryfast preset keeps this from taking forever on phones; crf 28 + 720p
+        // cap gives a good size/quality tradeoff for short social clips.
+        await ffmpeg.exec([
+          '-i', inputFile,
+          '-vf', "scale='min(720,iw)':-2",
+          '-c:v', 'libx264',
+          '-preset', 'veryfast',
+          '-crf', '28',
+          '-pix_fmt', 'yuv420p',
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          '-movflags', '+faststart',
+          outputFile,
+        ], 120000); // 2 min hard timeout so a pathological file can't hang the tab
+
+        const data = await ffmpeg.readFile(outputFile);
+        return new Blob([data.buffer], { type: 'video/mp4' });
+      } finally {
+        _currentOnProgress = null;
+        await ffmpeg.deleteFile(inputFile).catch(() => {});
+        await ffmpeg.deleteFile(outputFile).catch(() => {});
+      }
     };
   </script>
 

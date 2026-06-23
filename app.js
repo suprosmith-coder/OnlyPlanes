@@ -6348,7 +6348,7 @@ function openSnippetUploadModal() {
       <div class="drop-zone" id="snippet-drop-zone" style="border:2px dashed var(--border);border-radius:16px;padding:32px;text-align:center;cursor:pointer;transition:0.2s">
         <div style="font-size:40px;margin-bottom:10px">🎬</div>
         <div style="font-size:14px;font-weight:600;color:var(--text-secondary)">Drop your video here</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Max 30 seconds · Will be compressed to ~599 KB</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Max 30 seconds · Any format — we'll optimize it for playback</div>
         <input type="file" id="snippet-file-input" accept="video/*" style="display:none">
       </div>
       <div id="snippet-preview-area" style="display:none">
@@ -6374,19 +6374,17 @@ function openSnippetUploadModal() {
 
   function validateVideoFile(file) {
     if (!file) return false;
-    // Block containers that are unreliable in browsers other than the uploader's own
-    // (MOV/HEVC from iPhones, AVI, MKV) — these upload fine but silently fail to play
-    // for most other viewers, which is the #1 cause of "clips that don't play".
-    const ext = (file.name.split('.').pop() || '').toLowerCase();
-    const riskyExt  = ['mov', 'avi', 'mkv', 'wmv'].includes(ext);
-    const riskyType = ['video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/x-ms-wmv'].includes(file.type);
-    if (riskyExt || riskyType) {
-      toast('This format often fails to play for other viewers. Please export as MP4 (H.264) or WebM.', 'circle-exclamation');
+    // Any video format is accepted — every upload gets transcoded to MP4/H.264
+    // before it's stored, so the source container/codec doesn't matter for playback.
+    // Just guard against obviously-wrong files and pathologically large ones that
+    // would hang a phone's browser trying to decode them.
+    if (file.type && !file.type.startsWith('video/')) {
+      toast(`Unsupported file type: ${file.type}. Please upload a video.`, 'circle-exclamation');
       return false;
     }
-    // Allow empty MIME type (common on Android) or any other video/* type
-    if (file.type && !file.type.startsWith('video/')) {
-      toast(`Unsupported file type: ${file.type}. Please upload a video (MP4 or WebM).`, 'circle-exclamation');
+    const MAX_BYTES = 300 * 1024 * 1024; // 300MB raw input ceiling, well above a 30s clip
+    if (file.size > MAX_BYTES) {
+      toast('That file is too large to process in-browser. Try a shorter or lower-resolution clip.', 'circle-exclamation');
       return false;
     }
     return true;
@@ -6413,60 +6411,71 @@ function openSnippetUploadModal() {
     const url = URL.createObjectURL(file);
     previewVid.src = url;
     previewArea.style.display = 'block';
-    postBtn.disabled = true;
+    postBtn.disabled = false; // not blocked on local preview — every format gets transcoded anyway
     durationWarn.style.display = 'none';
 
     let resolved = false;
 
-    // Some unsupported codecs never fire loadedmetadata, which used to leave the
-    // Post button stuck disabled forever. Time out and surface an error instead.
-    const metaTimeout = setTimeout(() => {
-      if (resolved) return;
-      resolved = true;
-      toast("Couldn't read this video — try exporting it as MP4 first.", 'circle-exclamation');
-      previewArea.style.display = 'none';
-      selectedFile = null;
-    }, 6000);
+    // Some source codecs (HEVC/.mov etc.) never fire loadedmetadata in this browser.
+    // That used to leave the Post button stuck disabled forever — now we just skip
+    // the local duration check instead of blocking the upload.
+    const metaTimeout = setTimeout(() => { resolved = true; }, 5000);
 
     previewVid.onloadedmetadata = () => {
       if (resolved) return;
       resolved = true;
       clearTimeout(metaTimeout);
-      if (previewVid.duration > 31) {
-        durationWarn.style.display = 'block';
-        postBtn.disabled = true;
-      } else {
-        durationWarn.style.display = 'none';
-        postBtn.disabled = false;
-      }
+      durationWarn.style.display = previewVid.duration > 31 ? 'block' : 'none';
     };
 
     previewVid.onerror = () => {
       if (resolved) return;
       resolved = true;
       clearTimeout(metaTimeout);
-      toast("This video can't be played on your device — try MP4 or WebM instead.", 'circle-exclamation');
-      previewArea.style.display = 'none';
-      selectedFile = null;
+      // Can't preview it locally, but ffmpeg.wasm can still likely decode and
+      // transcode it server-side-in-browser, so leave the Post button enabled.
     };
   }
 
   postBtn.addEventListener('click', async () => {
     if (!selectedFile) return;
     postBtn.disabled = true;
-    postBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading…';
     const status = document.getElementById('snippet-compress-status');
     status.style.display = 'block';
+    status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Optimizing video…';
+    postBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Optimizing…';
 
     const caption = document.getElementById('snippet-caption').value.trim();
 
-    // Upload video to storage bucket
-    const ext  = selectedFile.name.split(".").pop() || "mp4";
-    const path = `posts/${State.user.id}/${Date.now()}.${ext}`;
-    const safeType = selectedFile.type.startsWith("video/") ? selectedFile.type : "video/mp4";
+    let mp4Blob;
+    try {
+      if (typeof window.transcodeVideoToMp4 !== 'function') {
+        throw new Error('Video engine unavailable');
+      }
+      mp4Blob = await window.transcodeVideoToMp4(selectedFile, {
+        onStatus: (msg) => { status.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${escapeHtml(msg)}`; },
+        onProgress: (p) => {
+          const pct = Math.round(p * 100);
+          status.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Compressing video… ${pct}%`;
+          postBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${pct}%`;
+        },
+      });
+    } catch (err) {
+      console.error('Transcode failed:', err);
+      toast("Couldn't process this video — try a different file.", 'circle-exclamation');
+      postBtn.disabled = false;
+      postBtn.innerHTML = '<i class="fa-solid fa-film"></i> Post Clip';
+      status.style.display = 'none';
+      return;
+    }
 
-    status.textContent = "Uploading video to storage...";
-    const { data: uploadData, error: uploadErr } = await sb.storage.from("op_snippets").upload(path, selectedFile, { contentType: safeType });
+    // Upload the transcoded MP4 (H.264/AAC) — every clip lands in storage in the
+    // same playable format, regardless of what format was originally uploaded.
+    const path = `posts/${State.user.id}/${Date.now()}.mp4`;
+
+    status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading…';
+    postBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading…';
+    const { data: uploadData, error: uploadErr } = await sb.storage.from("op_snippets").upload(path, mp4Blob, { contentType: "video/mp4" });
 
     if (uploadErr) {
       toast("Video upload failed: " + uploadErr.message, "circle-exclamation");
