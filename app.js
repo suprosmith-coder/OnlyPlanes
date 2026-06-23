@@ -6040,6 +6040,25 @@ function buildSnippetCard(snippet) {
   // Sync video mute state with global mute
   video.muted = _snippetsMuted;
 
+  // Unplayable clip (e.g. unsupported codec/container) — show a clear fallback
+  // instead of a silent black screen, and auto-advance past it.
+  video.addEventListener('error', () => {
+    if (card.querySelector('.snip-error-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'snip-error-overlay';
+    overlay.style.cssText = `
+      position:absolute;inset:0;z-index:5;background:#000;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:8px;color:#fff;text-align:center;padding:24px;
+    `;
+    overlay.innerHTML = `
+      <div style="font-size:36px">🎬</div>
+      <div style="font-weight:700;font-size:15px">Can't play this clip</div>
+      <div style="font-size:12px;opacity:0.6">It may use a video format your browser doesn't support</div>
+    `;
+    card.appendChild(overlay);
+  }, { once: true });
+
   // Progress bar
   video.addEventListener('timeupdate', () => {
     if (video.duration) progress.style.width = ((video.currentTime / video.duration) * 100) + '%';
@@ -6355,9 +6374,19 @@ function openSnippetUploadModal() {
 
   function validateVideoFile(file) {
     if (!file) return false;
-    // Allow empty MIME type (common on Android) or any video/* type
+    // Block containers that are unreliable in browsers other than the uploader's own
+    // (MOV/HEVC from iPhones, AVI, MKV) — these upload fine but silently fail to play
+    // for most other viewers, which is the #1 cause of "clips that don't play".
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const riskyExt  = ['mov', 'avi', 'mkv', 'wmv'].includes(ext);
+    const riskyType = ['video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/x-ms-wmv'].includes(file.type);
+    if (riskyExt || riskyType) {
+      toast('This format often fails to play for other viewers. Please export as MP4 (H.264) or WebM.', 'circle-exclamation');
+      return false;
+    }
+    // Allow empty MIME type (common on Android) or any other video/* type
     if (file.type && !file.type.startsWith('video/')) {
-      toast(`Unsupported file type: ${file.type}. Please upload a video (MP4, WebM, MOV).`, 'circle-exclamation');
+      toast(`Unsupported file type: ${file.type}. Please upload a video (MP4 or WebM).`, 'circle-exclamation');
       return false;
     }
     return true;
@@ -6384,7 +6413,25 @@ function openSnippetUploadModal() {
     const url = URL.createObjectURL(file);
     previewVid.src = url;
     previewArea.style.display = 'block';
+    postBtn.disabled = true;
+    durationWarn.style.display = 'none';
+
+    let resolved = false;
+
+    // Some unsupported codecs never fire loadedmetadata, which used to leave the
+    // Post button stuck disabled forever. Time out and surface an error instead.
+    const metaTimeout = setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
+      toast("Couldn't read this video — try exporting it as MP4 first.", 'circle-exclamation');
+      previewArea.style.display = 'none';
+      selectedFile = null;
+    }, 6000);
+
     previewVid.onloadedmetadata = () => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(metaTimeout);
       if (previewVid.duration > 31) {
         durationWarn.style.display = 'block';
         postBtn.disabled = true;
@@ -6392,6 +6439,15 @@ function openSnippetUploadModal() {
         durationWarn.style.display = 'none';
         postBtn.disabled = false;
       }
+    };
+
+    previewVid.onerror = () => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(metaTimeout);
+      toast("This video can't be played on your device — try MP4 or WebM instead.", 'circle-exclamation');
+      previewArea.style.display = 'none';
+      selectedFile = null;
     };
   }
 
