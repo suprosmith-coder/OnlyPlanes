@@ -255,7 +255,8 @@
 
     async function getFFmpeg() {
       if (_ffmpegPromise) return _ffmpegPromise;
-      _ffmpegPromise = (async () => {
+
+      const loadPromise = (async () => {
         const { FFmpeg } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js');
         const { toBlobURL } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js');
         const ffmpeg = new FFmpeg();
@@ -276,6 +277,19 @@
         });
         return ffmpeg;
       })();
+
+      // The core download is ~25-31MB. Don't let a stalled fetch or slow
+      // connection hang the upload UI forever — fail clearly after 60s, and
+      // reset the cache so the *next* attempt actually retries instead of
+      // instantly replaying the same stale rejection.
+      _ffmpegPromise = Promise.race([
+        loadPromise,
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error('Video engine took too long to load (slow connection?)')),
+          60000
+        )),
+      ]).catch(err => { _ffmpegPromise = null; throw err; });
+
       return _ffmpegPromise;
     }
 
