@@ -6462,7 +6462,8 @@ function openSnippetUploadModal() {
       });
     } catch (err) {
       console.error('Transcode failed:', err);
-      toast("Couldn't process this video — try a different file.", 'circle-exclamation');
+      const detail = (err && err.message) ? `: ${err.message}`.slice(0, 80) : '';
+      toast(`Couldn't process this video${detail}`, 'circle-exclamation');
       postBtn.disabled = false;
       postBtn.innerHTML = '<i class="fa-solid fa-film"></i> Post Clip';
       status.style.display = 'none';
